@@ -4487,7 +4487,7 @@ rollout rolBsKeyTools "" width:355 height:250
 	on btnLayerManager pressed do 
 	(
 		try(FileIn ((getDir #scripts) + "\\BulletScripts" + "\\BsLayerManager.ms"))
-		catch(try(massagebox (getCurrentException()));catch();messagebox "打开 ayerManagerAlternative.ms 失败，可能脚本错误或安装不完全，\r\n\r\n建议查看设置中的帮助或重新安装，还有问题烦请联系我...                            " beep:false title:"BsKeyTools")
+		catch(try(massagebox (getCurrentException()));catch();messagebox "打开 BsLayerManager.ms 失败，可能脚本错误或安装不完全，\r\n\r\n建议查看设置中的帮助或重新安装，还有问题烦请联系我...                            " beep:false title:"BsKeyTools")
 	)
 
 	on btnLayerManager rightclick do 

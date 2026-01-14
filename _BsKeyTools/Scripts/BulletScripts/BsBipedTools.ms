@@ -2,6 +2,8 @@
 -- By Bullet.S 自用修改版,功能大集合,完全开源免费仅供学习使用,请勿用于商业用途,否则后果自负    
 Reference： SoxBipedAssist_v0.423 & Biped Helper v3.1  
 Since 2023.03
+v2.2
+1.修复回调报错，感谢 夏奈，狂三
 
 v2.1
 1.优化手指弯曲功能（一方狂三）
@@ -45,7 +47,10 @@ global offsetBsAboutPanel = [0,0]
 global stateBsAboutPanel = 0
 global dotLinkLabel1
 global dotLinkLabel2
-global verBsBipedTools = "v2.1"
+global verBsBipedTools = "v2.2"
+
+-- 文件加载锁，防止在文件加载期间触发回调导致Script Controller编辑器弹出
+global BsBT_FileLoadingLock = false
 
 try(destroydialog rolBsBipedTools) catch()
 try(destroyDialog rolBSLeftHandPivots)catch()
@@ -5252,17 +5257,20 @@ rollout rolBsBipedTools "BsBipedTools" width:180 height:585
 			if m_RFoot[1] != undefined then uiCbtRightLeg.checked = biped.getLimbRetargetState m_RFoot[1]
 		)
 
-        callbacks.addScript #filePostOpen "rolBsBipedTools.InitLocalVars ()" id:#BsBTCallbackOpen
-		callbacks.addScript #systemPostNew "rolBsBipedTools.InitLocalVars ()" id:#BsBTCallbackNew
-		callbacks.addScript #systemPostReset "rolBsBipedTools.InitLocalVars ()" id:#BsBTCallbackReset
-		callbacks.addScript #selectionSetChanged "rolBsBipedTools.InitLocalVars ()" id:#BsBTSelChange
-		callbacks.addScript #sceneUndo "rolBsBipedTools.InitLocalVars()" id:#BsBTUpdateLayers
+        -- 文件加载锁机制：防止在文件加载期间触发回调导致Script Controller编辑器弹出
+        callbacks.addScript #filePreOpen "BsBT_FileLoadingLock = true" id:#BsBTCallbackPreOpen
+        callbacks.addScript #filePostOpen "try(with quiet on CatsBipedTools.InitLocalVars())catch(); BsBT_FileLoadingLock = false" id:#BsBTCallbackOpen
+		callbacks.addScript #systemPostNew "try(with quiet on rolBsBipedTools.InitLocalVars())catch()" id:#BsBTCallbackNew
+		callbacks.addScript #systemPostReset "try(with quiet on rolBsBipedTools.InitLocalVars())catch()" id:#BsBTCallbackReset
+		callbacks.addScript #selectionSetChanged "if not BsBT_FileLoadingLock then (try(with quiet on rolBsBipedTools.InitLocalVars())catch())" id:#BsBTSelChange
+		callbacks.addScript #sceneUndo "if not BsBT_FileLoadingLock then (try(with quiet on rolBsBipedTools.InitLocalVars())catch())" id:#BsBTUpdateLayers
 		
 		fnSetBsBTConfig()
 
 	)
 	
 	on rolBsBipedTools close do (
+        callbacks.removeScripts id:#BsBTCallbackPreOpen
         callbacks.removeScripts id:#BsBTCallbackOpen
 		callbacks.removeScripts id:#BsBTCallbackNew
 		callbacks.removeScripts id:#BsBTCallbackReset
