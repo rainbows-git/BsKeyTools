@@ -59,12 +59,12 @@ fn rollout_from_INI =
 				::Test_OuterRollout.Test_frame.SubRollout2.drp_aspect.items = aspectItems
 			)
 			
-		pos = (getINISetting iniFile Test_OuterRollout.name "pos")
-        if pos != "" do (
-            tokens = filterString pos "[],"
-            pos = point2 (tokens[1] as float) (tokens[2] as float)
-            setDialogPos Test_OuterRollout pos
-        )
+		-- pos = (getINISetting iniFile Test_OuterRollout.name "pos")
+        -- if pos != "" do (
+        --     tokens = filterString pos "[],"
+        --     pos = point2 (tokens[1] as float) (tokens[2] as float)
+        --     setDialogPos Test_OuterRollout pos
+        -- )
 		
 		for roll in Test_OuterRollout.test_frame.rollouts do
 		(
@@ -659,7 +659,7 @@ fn drawCircle origin radius1 radius2 startAngle endAngle step clr = (
 -- Main Rollout --
 --------------------	
 	
-rollout Test_OuterRollout "构图辅助_v1.1"  width:140 height:883
+rollout Test_OuterRollout "构图辅助_v1.1.1"  width:140 height:883
 (
 	local updating = if updating != undefined then updating else on
 	
