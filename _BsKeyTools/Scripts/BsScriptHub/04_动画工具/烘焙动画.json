@@ -12,7 +12,7 @@
         "关键帧"
     ],
     "preview": "",
-    "script": "烘焙动画.ms",
+    "script": "BulletScripts/Quote/BakeAnim.ms",
     "url": "",
     "tutorial": ""
 }

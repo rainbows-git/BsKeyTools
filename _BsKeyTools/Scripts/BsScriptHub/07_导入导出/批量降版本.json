@@ -12,7 +12,7 @@
         "批量"
     ],
     "preview": "",
-    "script": "批量降版本.ms",
+    "script": "BulletScripts/Quote/Batch version down.ms",
     "url": "",
     "tutorial": ""
 }

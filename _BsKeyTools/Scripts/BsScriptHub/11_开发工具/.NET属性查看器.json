@@ -12,7 +12,7 @@
         "调试"
     ],
     "preview": "",
-    "script": ".NET属性查看器.ms",
+    "script": "BulletScripts/Quote/Show.NetProperty.ms",
     "url": "",
     "tutorial": ""
 }

@@ -12,7 +12,7 @@
         "管理"
     ],
     "preview": "",
-    "script": "窗口工具箱.ms",
+    "script": "BulletScripts/Quote/WinBox.ms",
     "url": "",
     "tutorial": ""
 }

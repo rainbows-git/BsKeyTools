@@ -12,7 +12,7 @@
         "管理"
     ],
     "preview": "",
-    "script": "灯光台.ms",
+    "script": "BulletScripts/Quote/LightTable.ms",
     "url": "",
     "tutorial": ""
 }

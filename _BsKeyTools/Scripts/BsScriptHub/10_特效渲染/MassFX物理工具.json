@@ -12,7 +12,7 @@
         "模拟"
     ],
     "preview": "",
-    "script": "MassFX物理工具.ms",
+    "script": "BulletScripts/Quote/MassFX.ms",
     "url": "",
     "tutorial": ""
 }

@@ -84,11 +84,25 @@ def scan_scripts():
                     # 修改日期：从 Git 提交记录获取（真正的最后修改时间）
                     script_file = script_info.get("script", "")
                     if script_file:
-                        script_path = os.path.join(item_path, script_file)
-                        git_date = get_git_commit_date(script_path)
-                        if git_date:
-                            script_info["modified_date"] = git_date
-                        elif "modified_date" not in script_info:
+                        # 判断是包装脚本还是真实脚本
+                        if script_file.startswith("BulletScripts/"):
+                            # 包装脚本：构建到 BulletScripts 的路径
+                            git_root = get_git_root()
+                            if git_root:
+                                script_path = os.path.join(git_root, "_BsKeyTools", "Scripts", script_file)
+                            else:
+                                script_path = None
+                        else:
+                            # 真实脚本：在当前分类目录下
+                            script_path = os.path.join(item_path, script_file)
+                        
+                        if script_path and os.path.exists(script_path):
+                            git_date = get_git_commit_date(script_path)
+                            if git_date:
+                                script_info["modified_date"] = git_date
+                        
+                        # 如果没有获取到日期，保持空字符串
+                        if "modified_date" not in script_info:
                             script_info["modified_date"] = ""
                     
                     scripts.append(script_info)

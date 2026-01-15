@@ -12,7 +12,7 @@
         "动力学"
     ],
     "preview": "",
-    "script": "飘带解算增强版.ms",
+    "script": "BulletScripts/Quote/SpringMagic_Enhanced.ms",
     "url": "",
     "tutorial": ""
 }

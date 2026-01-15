@@ -12,7 +12,7 @@
         "关键帧"
     ],
     "preview": "",
-    "script": "补间动画工具.ms",
+    "script": "BulletScripts/Quote/TweenMachine.ms",
     "url": "",
     "tutorial": ""
 }

@@ -12,7 +12,7 @@
         "Morph"
     ],
     "preview": "",
-    "script": "镜像变形.ms",
+    "script": "BulletScripts/Quote/mirrormorph.ms",
     "url": "",
     "tutorial": ""
 }

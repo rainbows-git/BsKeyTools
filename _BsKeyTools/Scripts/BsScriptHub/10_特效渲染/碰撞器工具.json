@@ -12,7 +12,7 @@
         "物理"
     ],
     "preview": "",
-    "script": "碰撞器工具.ms",
+    "script": "BulletScripts/Quote/Collider.ms",
     "url": "",
     "tutorial": ""
 }

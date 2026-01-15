@@ -12,7 +12,7 @@
         "筛选"
     ],
     "preview": "",
-    "script": "对象选择器.ms",
+    "script": "BulletScripts/Quote/objectPicker.ms",
     "url": "",
     "tutorial": ""
 }

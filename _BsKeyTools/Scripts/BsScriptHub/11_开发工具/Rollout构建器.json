@@ -12,7 +12,7 @@
         "构建"
     ],
     "preview": "",
-    "script": "Rollout构建器.ms",
+    "script": "BulletScripts/Quote/RolloutBuilder.ms",
     "url": "",
     "tutorial": ""
 }

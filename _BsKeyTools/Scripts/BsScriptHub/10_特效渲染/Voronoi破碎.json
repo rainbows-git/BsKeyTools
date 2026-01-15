@@ -12,7 +12,7 @@
         "碎片"
     ],
     "preview": "",
-    "script": "Voronoi破碎.ms",
+    "script": "BulletScripts/Quote/FractureVoronoi.ms",
     "url": "",
     "tutorial": ""
 }

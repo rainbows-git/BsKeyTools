@@ -12,7 +12,7 @@
         "Skin"
     ],
     "preview": "",
-    "script": "替换蒙皮骨骼.ms",
+    "script": "BulletScripts/Quote/sox_replacebonefromskin.ms",
     "url": "",
     "tutorial": ""
 }

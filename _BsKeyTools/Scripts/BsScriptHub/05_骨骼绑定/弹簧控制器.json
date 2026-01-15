@@ -12,7 +12,7 @@
         "跟随"
     ],
     "preview": "",
-    "script": "弹簧控制器.ms",
+    "script": "BulletScripts/Quote/springcontroller.ms",
     "url": "",
     "tutorial": ""
 }

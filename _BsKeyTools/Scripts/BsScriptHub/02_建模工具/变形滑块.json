@@ -12,7 +12,7 @@
         "滑块"
     ],
     "preview": "",
-    "script": "变形滑块.ms",
+    "script": "BulletScripts/Quote/pxMorphSliders.ms",
     "url": "",
     "tutorial": ""
 }

@@ -1789,15 +1789,33 @@ class BsScriptHub(QDialog):
         self.preview_label.setPixmap(scaled)
     
     def _get_script_remote_path(self, script_data):
-        """获取脚本的远程路径（包含分类文件夹）"""
-        category = script_data.get("category", "未分类")
+        """获取脚本的远程路径
+        如果 script 以 'BulletScripts/' 开头，从源脚本路径获取
+        否则从 BsScriptHub 分类目录获取
+        """
         script_file = script_data.get("script", "")
+        
+        # 包装脚本：script 以 'BulletScripts/' 开头
+        if script_file.startswith("BulletScripts/"):
+            return "_BsKeyTools/Scripts/%s" % script_file
+        
+        # 真实脚本：从 BsScriptHub 目录获取
+        category = script_data.get("category", "未分类")
         return "%s/%s/%s" % (SCRIPTS_PATH, category, script_file)
     
     def _get_script_local_path(self, script_data):
-        """获取脚本的本地缓存路径"""
-        category = script_data.get("category", "未分类")
+        """获取脚本的本地缓存路径
+        包装脚本缓存源脚本文件名，真实脚本缓存自己
+        """
         script_file = script_data.get("script", "")
+        category = script_data.get("category", "未分类")
+        
+        # 包装脚本：提取源脚本文件名
+        if script_file.startswith("BulletScripts/"):
+            source_filename = os.path.basename(script_file)
+            return os.path.join(self.local_cache_dir, category, source_filename)
+        
+        # 真实脚本：使用原始文件名
         return os.path.join(self.local_cache_dir, category, script_file)
     
     def _run_script(self):
@@ -1822,7 +1840,7 @@ class BsScriptHub(QDialog):
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 0)
         
-        # 下载脚本（使用分类路径）
+        # 下载脚本（自动识别包装脚本或真实脚本）
         remote_path = self._get_script_remote_path(self.current_script)
         url = self._get_github_url(remote_path)
         worker = NetworkWorker(url)
@@ -1844,7 +1862,7 @@ class BsScriptHub(QDialog):
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 0)
         
-        # 下载脚本（使用分类路径）
+        # 下载脚本（自动识别包装脚本或真实脚本）
         remote_path = self._get_script_remote_path(self.current_script)
         url = self._get_github_url(remote_path)
         worker = NetworkWorker(url)

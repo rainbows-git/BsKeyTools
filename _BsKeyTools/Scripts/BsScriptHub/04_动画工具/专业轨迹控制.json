@@ -12,7 +12,7 @@
         "专业"
     ],
     "preview": "",
-    "script": "专业轨迹控制.ms",
+    "script": "BulletScripts/Quote/ProTrajectoryHandles.ms",
     "url": "",
     "tutorial": ""
 }

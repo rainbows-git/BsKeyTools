@@ -12,7 +12,7 @@
         "绑定"
     ],
     "preview": "",
-    "script": "合并蒙皮.ms",
+    "script": "BulletScripts/Quote/Rigging_CombineSkin.ms",
     "url": "",
     "tutorial": ""
 }

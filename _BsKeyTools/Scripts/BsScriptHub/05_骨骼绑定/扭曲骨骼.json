@@ -12,7 +12,7 @@
         "骨骼"
     ],
     "preview": "",
-    "script": "扭曲骨骼.ms",
+    "script": "BulletScripts/Quote/twistbones.ms",
     "url": "",
     "tutorial": ""
 }

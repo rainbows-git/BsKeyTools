@@ -12,7 +12,7 @@
         "场景"
     ],
     "preview": "",
-    "script": "世界单位缩放.ms",
+    "script": "BulletScripts/Quote/RescaleWU.ms",
     "url": "",
     "tutorial": ""
 }

@@ -12,7 +12,7 @@
         "转换"
     ],
     "preview": "",
-    "script": "批量导入转换.ms",
+    "script": "BulletScripts/Quote/Batch Import Convert.ms",
     "url": "",
     "tutorial": ""
 }

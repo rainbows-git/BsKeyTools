@@ -12,7 +12,7 @@
         "HWND"
     ],
     "preview": "",
-    "script": "窗口句柄查看器.ms",
+    "script": "BulletScripts/Quote/simple_hwnd_viewer.ms",
     "url": "",
     "tutorial": ""
 }

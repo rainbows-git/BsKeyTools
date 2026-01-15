@@ -12,7 +12,7 @@
         "优化"
     ],
     "preview": "",
-    "script": "LOD创建器.ms",
+    "script": "BulletScripts/Quote/lod_creator.ms",
     "url": "",
     "tutorial": ""
 }

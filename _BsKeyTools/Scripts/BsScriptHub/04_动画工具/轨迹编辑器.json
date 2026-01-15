@@ -12,7 +12,7 @@
         "编辑"
     ],
     "preview": "",
-    "script": "轨迹编辑器.ms",
+    "script": "BulletScripts/Quote/DTrajEdit_New.ms",
     "url": "",
     "tutorial": ""
 }

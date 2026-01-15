@@ -12,7 +12,7 @@
         "Skin"
     ],
     "preview": "",
-    "script": "修改蒙皮骨骼.ms",
+    "script": "BulletScripts/Quote/ChangeSkinBones.ms",
     "url": "",
     "tutorial": ""
 }

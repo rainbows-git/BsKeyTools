@@ -12,7 +12,7 @@
         "分区"
     ],
     "preview": "",
-    "script": "权重分区平滑.ms",
+    "script": "BulletScripts/Quote/权重分区平滑.ms",
     "url": "",
     "tutorial": ""
 }

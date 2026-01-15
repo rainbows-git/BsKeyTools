@@ -12,7 +12,7 @@
         "批量"
     ],
     "preview": "",
-    "script": "对象批量重命名.ms",
+    "script": "BulletScripts/Quote/P_ObjectRenamer.ms",
     "url": "",
     "tutorial": ""
 }

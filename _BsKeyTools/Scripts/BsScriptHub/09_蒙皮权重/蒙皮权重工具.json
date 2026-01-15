@@ -12,7 +12,7 @@
         "编辑"
     ],
     "preview": "",
-    "script": "蒙皮权重工具.ms",
+    "script": "BulletScripts/Quote/P_SkinWeightTool.ms",
     "url": "",
     "tutorial": ""
 }

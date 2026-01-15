@@ -1,408 +1,301 @@
 # 🤝 贡献指南
 
-感谢你对 BsKeyTools 的关注！以下是参与贡献的方式。
+欢迎参与 BsKeyTools 的开发！无论是报告问题、分享脚本还是提交代码，我们都非常感谢。
 
----
+## 🚀 快速导航
 
-## 📋 贡献方式一览
-
-| 方式 | 说明 | 难度 |
-|-----|------|-----|
-| 🐞 [报告 Bug](#-报告-bug) | 发现问题？告诉我们 | ⭐ |
-| 💡 [功能建议](#-功能建议) | 有好想法？提出来 | ⭐ |
-| 📦 [添加脚本](#-添加脚本到-bsscripthub) | 分享你的脚本 | ⭐⭐ |
-| 🔧 [提交代码](#-提交代码) | 直接贡献代码 | ⭐⭐⭐ |
+| 贡献方式 | 难度 | 说明 |
+|---------|:----:|------|
+| [🐞 报告 Bug](#-报告-bug) | ⭐ | 发现问题？告诉我们 |
+| [💡 功能建议](#-功能建议) | ⭐ | 有好想法？提出来 |
+| [📦 添加脚本](#-添加脚本) | ⭐⭐ | 分享你的脚本到 BsScriptHub |
+| [🔧 提交代码](#-提交代码) | ⭐⭐⭐ | 直接贡献代码 |
 
 ---
 
 ## 🐞 报告 Bug
 
-**👉 [点击这里提交 Bug](https://github.com/AniBullet/BsKeyTools/issues/new?template=bug_report.md)**
+**[→ 点击这里提交 Bug](https://github.com/AniBullet/BsKeyTools/issues/new?template=bug_report.md)**
 
-提交时请包含：
-- ❓ **问题描述**：发生了什么？
-- 🔄 **复现步骤**：怎么触发的？
-- 💻 **环境信息**：3ds Max 版本 + Windows 版本
-- 📸 **截图/报错**：有的话请附上
-
----
+请包含：问题描述、复现步骤、环境信息（3ds Max 版本 + Windows 版本）、截图/报错。
 
 ## 💡 功能建议
 
-**👉 [点击这里提交建议](https://github.com/AniBullet/BsKeyTools/issues/new?template=feature_request.md)**
+**[→ 点击这里提交建议](https://github.com/AniBullet/BsKeyTools/issues/new?template=feature_request.md)**
 
-请说明：
-- 🎯 想要什么功能？
-- 📝 解决什么问题？
+请说明想要什么功能、解决什么问题。
 
 ---
 
-## 📦 添加脚本到 BsScriptHub
+## 📦 添加脚本
 
-想分享你的脚本？按以下步骤操作：
+### 两种脚本类型
 
-### 1. 准备文件
+| 类型 | 说明 | script 字段示例 |
+|-----|------|----------------|
+| 🟢 **真实脚本** | 脚本文件在 BsScriptHub 内 | `"MyTool.ms"` |
+| 🔵 **包装脚本** | 引用 BulletScripts 中的脚本，自动从仓库获取最新版 | `"BulletScripts/Quote/Tool.ms"` |
 
-在 `_BsKeyTools/Scripts/BsScriptHub/分类名/` 下创建两个文件：
+> 💡 **识别规则**：`script` 字段以 `BulletScripts/` 开头即为包装脚本。
 
+### 添加流程
+
+<details>
+<summary><b>步骤 1️⃣：创建文件</b></summary>
+
+**真实脚本**（需要 `.ms` + `.json`）：
 ```
-BsScriptHub/
-├── 01_选择工具/         ← 数字前缀控制排序，显示时自动去掉
-├── 02_建模工具/
-│   ├── MyScript.ms      ← 脚本文件
-│   └── MyScript.json    ← 配置文件（同名）
+BsScriptHub/02_建模工具/
+├── MyTool.ms
+└── MyTool.json
 ```
 
-> 💡 分类文件夹用 `数字_名称` 格式（如 `01_选择工具`），界面显示时会自动去掉前缀。
+**包装脚本**（只需 `.json`）：
+```
+BsScriptHub/08_镜头相关/
+└── 构图辅助.json
+```
+</details>
 
-### 2. 编写配置文件
+<details>
+<summary><b>步骤 2️⃣：编写 JSON 配置</b></summary>
 
-`MyScript.json` 格式：
-
+**真实脚本示例：**
 ```json
 {
-    "name": "MyScript",
+    "name": "我的工具",
     "version": "1.0.0",
-    "description": "脚本功能描述",
+    "description": "工具描述",
     "author": "你的名字",
-    "script": "MyScript.ms"
+    "script": "MyTool.ms"
 }
 ```
 
+**包装脚本示例：**
+```json
+{
+    "name": "构图辅助",
+    "version": "1.1.1",
+    "description": "构图工具",
+    "author": "原作者",
+    "script": "BulletScripts/Quote/ImageCompHelper.ms"
+}
+```
+
+**字段说明：**
+
 | 字段 | 必填 | 说明 |
 |-----|:---:|-----|
-| `name` | ✓ | 脚本名（与文件名一致） |
-| `version` | ✓ | 版本号 |
-| `description` | ✓ | 功能描述（支持 `\n` 换行） |
+| `name` | ✓ | 脚本显示名称 |
+| `version` | ✓ | 版本号（如 1.0.0） |
+| `description` | ✓ | 功能描述 |
 | `author` | ✓ | 原作者 |
-| `script` | ✓ | 脚本文件名 |
-| `optimizer` | | 修改人 |
-| `keywords` | | 搜索关键词 |
-| `url` | | 发布地址 |
-| `tutorial` | | 教程链接 |
-| `preview` | | 预览图文件名（同目录） |
+| `script` | ✓ | 脚本路径（见上方类型说明） |
+| `keywords` | | 搜索关键词数组 |
+| `preview` | | 预览图文件名 |
+| `url` / `tutorial` | | 链接地址 |
 
-> 💡 `modified_date` 无需填写，会自动从脚本文件读取修改日期
+</details>
 
-### 3. 添加预览图（可选）
+<details>
+<summary><b>步骤 3️⃣：提交到 dev 分支</b></summary>
 
-把预览图放在脚本同目录下，JSON 里只写文件名：
+按照[提交代码](#-提交代码)流程提交到 `dev` 分支。
 
-```
-BsScriptHub/
-├── 选择工具/
-│   ├── MyScript.ms
-│   ├── MyScript.json
-│   └── MyScript_preview.png  ← 预览图
-```
+> 💡 **索引自动更新**：提交后 GitHub Actions 会自动运行 `generate_index.py` 更新索引，无需手动操作。
 
-**建议**：
-- 格式：PNG / JPG
-- 尺寸：400×300 左右
-- 大小：< 200KB
+> 💡 **本地测试**（可选）：如果想在本地预览效果，可运行：
+> ```bash
+> cd _BsKeyTools/Scripts/BsScriptHub
+> python generate_index.py
+> ```
 
-### 4. 更新索引
+> 💡 分类文件夹格式：`数字_名称`（如 `01_选择工具`），显示时自动去掉数字。
 
-```bash
-cd _BsKeyTools/Scripts/BsScriptHub
-python generate_index.py
-```
-
-### 5. 提交 PR
-
-按下方流程提交到 `dev` 分支即可。
+</details>
 
 ---
 
 ## 🔧 提交代码
 
-> 💡 **新手提示**：如果你完全没有 Git 使用经验，建议先阅读下方详细步骤。有经验的同学可以直接使用[一键脚本](#一键脚本懒人专用)。
+### 🚀 快速开始（推荐）
 
-### 📋 前置准备
+使用一键脚本自动化整个流程：
 
-#### 1. 安装 Git
+1. 下载项目根目录的 `setup-contribute.ps1`
+2. 右键 → **使用 PowerShell 运行**
+3. 按提示输入 GitHub 用户名、分支名、提交信息
 
-**下载地址：**
-- **官方下载**：https://git-scm.com/download/win
-- **国内镜像**：https://mirrors.tuna.tsinghua.edu.cn/git-for-windows/
+> 💡 首次运行可能需要设置执行策略：`Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
 
-安装步骤：
-1. 双击安装包，一路点击 **Next**，使用默认设置
-2. 安装完成后，按 `Win + R`，输入 `cmd` 打开命令提示符
-3. 输入 `git --version` 验证安装（应显示版本号）
+### 📝 手动提交（详细步骤）
 
-#### 2. 注册 GitHub 账号
+<details>
+<summary><b>前置准备：安装 Git 和注册 GitHub</b></summary>
 
-1. 访问 https://github.com
-2. 点击右上角 **Sign up**，填写信息完成注册
-3. **重要**：记住你的 GitHub 用户名
+**安装 Git：**
+- 官方：https://git-scm.com/download/win
+- 国内镜像：https://mirrors.tuna.tsinghua.edu.cn/git-for-windows/
+- 安装后在命令行输入 `git --version` 验证
 
-> 💡 **可选**：配置 SSH 密钥可免密提交，详见 [GitHub 文档](https://docs.github.com/authentication/connecting-to-github-with-ssh)
+**注册 GitHub：**
+- 访问 https://github.com 注册账号
+- 可选：配置 [SSH 密钥](https://docs.github.com/authentication/connecting-to-github-with-ssh) 实现免密提交
 
----
+</details>
 
-### 详细步骤
-
-#### 第一步：Fork 仓库
-
-1. 打开 [BsKeyTools 仓库](https://github.com/AniBullet/BsKeyTools)
-2. 点击右上角 **Fork** 按钮
-3. 等待完成，页面会跳转到你的仓库副本
-
-#### 第二步：Clone 到本地
+<details>
+<summary><b>步骤 1️⃣：Fork 并 Clone 仓库</b></summary>
 
 ```bash
-# 把 "你的用户名" 替换成你的 GitHub 用户名
+# 在 GitHub 上点击 Fork 按钮，然后：
 git clone https://github.com/你的用户名/BsKeyTools.git
-
-# 进入项目文件夹
 cd BsKeyTools
-
-# 添加上游仓库（用于同步最新代码）
 git remote add upstream https://github.com/AniBullet/BsKeyTools.git
-
-# 验证配置
-git remote -v
-```
-
-#### 第三步：配置 Git 用户信息
-
-```bash
-# 配置你的名字和邮箱（只需设置一次）
 git config --global user.name "你的名字"
 git config --global user.email "你的邮箱"
 ```
 
-> 💡 邮箱建议使用 GitHub 账号绑定的邮箱
+</details>
 
-#### 第四步：创建新分支
+<details>
+<summary><b>步骤 2️⃣：创建分支并修改</b></summary>
 
 ```bash
-# 切换到 dev 分支
+# 创建新分支
 git checkout dev
-
-# 拉取最新代码
 git pull upstream dev
+git checkout -b feature/你的功能名  # 或 fix/修复说明
 
-# 创建你的工作分支
-git checkout -b feature/你的功能名   # 新功能
-# 或
-git checkout -b fix/修复说明        # Bug 修复
-```
-
-#### 第五步：修改代码并提交
-
-```bash
-# 1. 修改代码（用任何编辑器打开项目文件夹修改）
-
-# 2. 查看修改
-git status
-
-# 3. 添加所有更改到暂存区
+# 修改代码后提交
 git add .
-
-# 4. 提交（参考下方提交信息格式）
-git commit -m "feat: 添加了xxx功能"
-
-# 5. 推送到你的仓库
+git commit -m "feat: 你的修改说明"
 git push origin feature/你的功能名
 ```
 
-> ⚠️ **注意**：首次推送可能需要输入 GitHub 用户名和 **Personal Access Token**（不是登录密码）
-> 
-> **获取 Token**：
-> 1. 访问 https://github.com/settings/tokens
-> 2. 点击 **Generate new token** → **Generate new token (classic)**
-> 3. 勾选 `repo` 权限，生成并复制 Token（只显示一次！）
-> 4. 在 Git 要求输入密码时，粘贴这个 Token
+**提交信息格式：**
 
-#### 第六步：创建 Pull Request
+| 类型 | 前缀 | 示例 |
+|-----|------|------|
+| 新功能 | `feat:` | `feat: 添加批量导出功能` |
+| Bug修复 | `fix:` | `fix: 修复时间轴同步问题` |
+| 文档 | `docs:` | `docs: 更新安装说明` |
+| 重构 | `refactor:` | `refactor: 优化函数结构` |
 
-1. 打开你 Fork 的仓库页面：`https://github.com/你的用户名/BsKeyTools`
-2. 点击 **Compare & pull request** 按钮
-3. **重要**：确保 **base repository** 是 `AniBullet/BsKeyTools`，**base** 是 `dev`（不是 main！）
-4. 填写 PR 描述，点击 **Create pull request**
+> ⚠️ 首次推送需要 [Personal Access Token](https://github.com/settings/tokens)（勾选 `repo` 权限），不是登录密码！
 
-🎉 **完成！** 等待审核即可。
+</details>
 
----
+<details>
+<summary><b>步骤 3️⃣：创建 Pull Request</b></summary>
 
-### 🚀 一键脚本（懒人专用）
+1. 打开你的仓库：`https://github.com/你的用户名/BsKeyTools`
+2. 点击 **Compare & pull request**
+3. **重要**：确保 base 是 `dev` 分支（不是 main！）
+4. 填写描述并提交
 
-如果你觉得手动操作太麻烦，可以使用我们提供的一键脚本！
-
-**使用方法：**
-
-1. 下载脚本文件 `setup-contribute.ps1`（项目根目录）
-2. 右键点击脚本 → **使用 PowerShell 运行**
-3. 按照提示输入信息：
-   - GitHub 用户名
-   - 分支类型（feature/fix）
-   - 分支名称
-   - 提交信息
-
-**脚本功能：**
-- ✅ 检查 Git 是否安装
-- ✅ Clone 仓库到本地
-- ✅ 配置上游仓库
-- ✅ 切换到 dev 分支并拉取最新代码
-- ✅ 创建新分支
-- ✅ 等待你修改代码后，自动提交并推送
-
-> ⚠️ **注意**：首次运行 PowerShell 脚本可能需要设置执行策略：
-> ```powershell
-> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-> ```
-
----
+</details>
 
 ### ❓ 常见问题
 
-**Q1: 提示 "git: command not found"**  
-**A:** Git 未安装或未添加到系统路径。重新安装 Git，安装时选择 "Add Git to PATH"。
+<details>
+<summary><b>Q: Git 相关错误</b></summary>
 
-**Q2: Clone 时提示 "Permission denied"**  
-**A:** 检查仓库地址是否正确，或尝试使用 SSH 方式（需先配置 SSH 密钥）。
+- **"git: command not found"**: Git 未安装或未加入 PATH
+- **"Permission denied"**: 检查仓库地址或配置 SSH
+- **"Authentication failed"**: 使用 Personal Access Token，不是密码
 
-**Q3: Push 时提示 "Authentication failed"**  
-**A:** 确保使用 Personal Access Token 而不是密码，Token 需要有 `repo` 权限。
+</details>
 
-**Q4: 如何同步上游的最新代码？**  
-**A:** 
+<details>
+<summary><b>Q: 如何同步上游最新代码？</b></summary>
+
 ```bash
 git checkout dev
 git pull upstream dev
 git push origin dev
 ```
 
-**Q5: 提交后发现代码有问题，想修改？**  
-**A:** 
+</details>
+
+<details>
+<summary><b>Q: 如何修改已提交的代码？</b></summary>
+
 ```bash
 git add .
-git commit --amend -m "新的提交信息"
-git push origin feature/你的功能名 --force
-```
-> ⚠️ 注意：`--force` 会覆盖远程分支，谨慎使用！
-
-**Q6: 如何撤销本地修改？**  
-**A:** 
-```bash
-git checkout .              # 撤销所有未提交的修改
-git checkout 文件名          # 或只撤销特定文件
+git commit --amend -m "新提交信息"
+git push origin 分支名 --force  # ⚠️ 谨慎使用
 ```
 
-**Q7: 如何删除分支？**  
-**A:** 
+</details>
+
+<details>
+<summary><b>Q: 如何撤销/删除？</b></summary>
+
 ```bash
-git branch -d feature/你的功能名                    # 删除本地分支
-git push origin --delete feature/你的功能名         # 删除远程分支
+# 撤销本地修改
+git checkout .
+
+# 删除分支
+git branch -d 分支名                  # 本地
+git push origin --delete 分支名       # 远程
 ```
+
+</details>
 
 ---
 
-## 📝 提交信息格式
+## ✅ 提交检查清单
 
-| 类型 | 格式 | 示例 |
-|-----|------|------|
-| 新功能 | `feat: 描述` | `feat: 添加批量导出动画功能` |
-| 修复 Bug | `fix: 描述` | `fix: 修复时间轴同步问题` |
-| 文档 | `docs: 描述` | `docs: 更新安装说明` |
-| 格式 | `style: 描述` | `style: 调整代码缩进` |
-| 重构 | `refactor: 描述` | `refactor: 优化函数结构` |
-| 测试 | `test: 描述` | `test: 添加单元测试` |
-| 构建 | `build: 描述` | `build: 更新依赖版本` |
-
----
-
-## ✅ 提交前检查清单
-
-在创建 PR 之前，请确认：
-
-- [ ] 代码在 3ds Max 中测试过，没有报错
-- [ ] PR 目标分支是 `dev`（不是 main）
-- [ ] 提交信息符合格式规范
-- [ ] 代码风格与项目保持一致
+- [ ] 代码在 3ds Max 中测试通过
+- [ ] PR 目标分支是 `dev`
+- [ ] 提交信息符合规范（`feat:` / `fix:` / `docs:` 等）
 - [ ] 没有提交临时文件或敏感信息
 
 ---
 
 ## 📮 需要帮助？
 
-- **QQ 群1**：[993590655](https://jq.qq.com/?_wv=1027&k=hmeHhTwu)
-- **QQ 群2**：[907481113](https://qm.qq.com/q/FZ2gBKJeYE)
-- **GitHub**：[提问/讨论](https://github.com/AniBullet/BsKeyTools/issues)
+- **QQ 群**：[993590655](https://jq.qq.com/?_wv=1027&k=hmeHhTwu) / [907481113](https://qm.qq.com/q/FZ2gBKJeYE)
+- **GitHub Issues**：[提问/讨论](https://github.com/AniBullet/BsKeyTools/issues)
 
 ---
 
-## 👨‍💼 维护者指南（处理 Pull Request）
-
-> 此部分面向仓库维护者，普通贡献者可跳过。
+<details>
+<summary><b>👨‍💼 维护者指南（审核 PR）</b></summary>
 
 ### 审核流程
 
-#### 1. 查看代码变更
-
-1. 打开 PR 页面，点击 **Files changed** 标签
-2. 检查代码是否符合项目规范
-3. 如有问题，在具体代码行上添加评论
-
-#### 2. 与贡献者沟通（如需要）
-
-- 在 PR 页面的 **Conversation** 标签下留言
-- 贡献者修改后会自动更新到当前 PR
-
-#### 3. 合并 PR
-
-**方法 A：GitHub 网页（推荐）**
-
-1. 确认代码无问题后，点击 **Merge pull request**
-2. 选择合并方式：
-   - **Create a merge commit**：保留所有提交历史（推荐）
-   - **Squash and merge**：压缩成一个提交
-3. 点击 **Confirm merge**
-4. 可选：点击 **Delete branch** 删除贡献者的分支
-
-**方法 B：GitHub CLI**
+1. **查看变更**：PR 页面 → Files changed 标签
+2. **沟通反馈**：在代码行或 Conversation 中留言
+3. **合并 PR**：
 
 ```bash
-# 查看 PR 列表
+# 方法 A：GitHub 网页（推荐）
+# 点击 Merge pull request → Confirm merge
+
+# 方法 B：GitHub CLI
 gh pr list
+gh pr view <PR编号>
+gh pr merge <PR编号> --merge  # 或 --squash
 
-# 查看具体 PR 详情
-gh pr view PR编号
-
-# 合并 PR（保留提交历史）
-gh pr merge PR编号 --merge
-
-# 或压缩合并
-gh pr merge PR编号 --squash
-```
-
-**方法 C：命令行**
-
-```bash
-# 拉取 PR 到本地测试
-git fetch origin pull/PR编号/head:pr-test
+# 方法 C：命令行
+git fetch origin pull/<PR编号>/head:pr-test
 git checkout pr-test
-
-# 测试无问题后，合并到 dev
+# 测试后
 git checkout dev
 git merge pr-test
 git push origin dev
-
-# 删除临时分支
-git branch -d pr-test
 ```
 
-### 审核检查清单
+### 审核检查
 
-在合并 PR 前，请确认：
-
-- [ ] 代码逻辑正确，没有明显 Bug
-- [ ] PR 目标分支是 `dev`
+- [ ] 代码逻辑正确
+- [ ] 目标分支是 `dev`
 - [ ] 提交信息符合规范
-- [ ] 没有引入敏感信息或临时文件
-- [ ] 代码风格与项目一致
+- [ ] 无敏感信息
+
+</details>
 
 ---
 
