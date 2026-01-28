@@ -13,7 +13,9 @@
 [![GitHub last commit (main)](https://img.shields.io/github/last-commit/AniBullet/BsKeyTools/main?style=flat-square&logo=github&label=main)](https://github.com/AniBullet/BsKeyTools/tree/main)
 [![Latest Release](https://img.shields.io/badge/BsKeyTools-LatestReleases-success?style=flat-square&logo=github)](https://github.com/AniBullet/BsKeyTools/releases/latest)
 
-> **🌏 English Speakers:** [Full Documentation](https://deepwiki.com/AniBullet/BsKeyTools) available on DeepWiki
+[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/AniBullet/BsKeyTools)
+
+> **🌏 English Speakers:** Full Documentation available on DeepWiki
 
 </div>
 
