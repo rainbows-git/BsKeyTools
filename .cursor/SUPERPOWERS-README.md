@@ -7,17 +7,17 @@ Superpowers 已成功为 Cursor 配置！
 ### 已完成的配置
 
 1. **✅ Superpowers 仓库克隆**
-   - 位置: `C:\Users\BulletS\.codex\superpowers`
+   - 位置: `%USERPROFILE%\.codex\superpowers`
    - 包含所有官方 superpowers 技能
 
 2. **✅ Cursor 技能链接**
-   - 位置: `C:\Users\BulletS\.cursor\skills-cursor\superpowers`
+   - 位置: `%USERPROFILE%\.cursor\skills-cursor\superpowers`
    - 通过目录联接链接到 superpowers 仓库
    - 所有技能自动同步更新
 
 3. **✅ 规则文件创建**
-   - 全局规则: `C:\Users\BulletS\.cursor\rules\superpowers.md`
-   - 项目规则: `d:\_Scripts\GitHub\BsKeyTools\.cursor\rules\superpowers.md`
+   - 全局规则: `%USERPROFILE%\.cursor\rules\superpowers.md`
+   - 项目规则: `<项目根目录>\.cursor\rules\superpowers.md`
 
 ## 📚 可用的 Superpowers 技能
 
@@ -112,7 +112,7 @@ AI 应该会自动：
 要获取最新的技能和改进：
 
 ```powershell
-cd C:\Users\BulletS\.codex\superpowers
+cd %USERPROFILE%\.codex\superpowers
 git pull
 ```
 
@@ -121,9 +121,9 @@ git pull
 ## 📖 更多信息
 
 - **Superpowers 官方仓库**: https://github.com/obra/superpowers
-- **技能位置**: `C:\Users\BulletS\.cursor\skills-cursor\superpowers\`
+- **技能位置**: `%USERPROFILE%\.cursor\skills-cursor\superpowers\`
 - **规则文件**: 
-  - 全局: `C:\Users\BulletS\.cursor\rules\superpowers.md`
+  - 全局: `%USERPROFILE%\.cursor\rules\superpowers.md`
   - 项目: `.cursor\rules\superpowers.md`
 
 ## 🎯 开始使用
