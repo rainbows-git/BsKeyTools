@@ -3,7 +3,8 @@ Unicode true
 
 ; 安装程序初始定义常量
 !define PRODUCT_NAME "BsKeyTools"
-!define PRODUCT_VERSION "_v1.3.2"
+!define PRODUCT_VERSION_NUM "1.3.4"
+!define PRODUCT_VERSION "_v${PRODUCT_VERSION_NUM}"
 !define PRODUCT_PUBLISHER "Bullet.S"
 !define PRODUCT_WEB_SITE "anibullet.com"
 !define APPDATA_PLUGINS_PATH "C:\ProgramData\Autodesk\ApplicationPlugins"
@@ -61,6 +62,8 @@ var InstallMode ; 安装模式: 0=自动检测, 1=手动选择
 var MAXPATH ; 手动选择的3dsMax安装路径
 var SelectedVersion ; 手动模式下选择的Max版本
 var DropListHwnd ; 下拉列表的窗口句柄，用于后续操作
+var RemoteVersion ; 远程版本号
+var LocalVersion ; 本地版本号
 
 SetCompressor lzma
 
@@ -70,6 +73,10 @@ SetCompressor lzma
 !include "Sections.nsh" ; 引入Sections库
 !include "FileFunc.nsh" ; 引入文件功能库
 !include "WinMessages.nsh"
+!include "WordFunc.nsh" ; 引入版本比较功能
+!include "TextFunc.nsh" ; 引入文本处理功能
+!insertmacro VersionCompare
+!insertmacro TrimNewLines
 
 ; MUI 预定义常量
 !define MUI_ABORTWARNING
@@ -1148,9 +1155,82 @@ Section "3dsMax 9" ${SEC_9}
   ${EndIf}
 SectionEnd
 
+; 版本检查函数 - 检测是否有新版本可用
+Function CheckForUpdates
+  ; 使用顶部定义的版本号常量
+  StrCpy $LocalVersion "${PRODUCT_VERSION_NUM}"
+  
+  ; ===== 尝试 1: Gitee（国内最稳定）=====
+  inetc::get /SILENT /CONNECTTIMEOUT 3 /RECEIVETIMEOUT 3 \
+    "https://gitee.com/acebullet/BsKeyTools/raw/main/_BsKeyTools/version.dat" \
+    "$TEMP\bskey_version_check.dat" /END
+  Pop $0
+  ${If} $0 == "OK"
+    Goto ReadVersionFile
+  ${EndIf}
+  
+  ; ===== 尝试 2: jsdelivr CDN =====
+  inetc::get /SILENT /CONNECTTIMEOUT 3 /RECEIVETIMEOUT 3 \
+    "https://cdn.jsdelivr.net/gh/AniBullet/BsKeyTools@main/_BsKeyTools/version.dat" \
+    "$TEMP\bskey_version_check.dat" /END
+  Pop $0
+  ${If} $0 == "OK"
+    Goto ReadVersionFile
+  ${EndIf}
+  
+  ; ===== 尝试 3: GitHub Raw（备选）=====
+  inetc::get /SILENT /CONNECTTIMEOUT 2 /RECEIVETIMEOUT 2 \
+    "https://raw.githubusercontent.com/AniBullet/BsKeyTools/main/_BsKeyTools/version.dat" \
+    "$TEMP\bskey_version_check.dat" /END
+  Pop $0
+  ${If} $0 == "OK"
+    Goto ReadVersionFile
+  ${EndIf}
+  
+  ; 所有源都失败，静默跳过版本检查
+  Goto CheckUpdateDone
+  
+  ReadVersionFile:
+    ; 读取远程版本号
+    ClearErrors
+    FileOpen $1 "$TEMP\bskey_version_check.dat" r
+    ${If} ${Errors}
+      Goto CheckUpdateDone
+    ${EndIf}
+    FileRead $1 $RemoteVersion
+    FileClose $1
+    Delete "$TEMP\bskey_version_check.dat"
+    
+    ; 去除换行符和空格
+    ${TrimNewLines} $RemoteVersion $RemoteVersion
+    
+    ; 检查版本号是否有效
+    StrLen $0 $RemoteVersion
+    ${If} $0 == 0
+      Goto CheckUpdateDone
+    ${EndIf}
+    
+    ; 比较版本号：$R0=1 表示远程版本更新，$R0=0 表示相同，$R0=2 表示本地更新
+    ${VersionCompare} $RemoteVersion $LocalVersion $R0
+    
+    ${If} $R0 == 1
+      MessageBox MB_ICONINFORMATION|MB_YESNO "检测到新版本 v$RemoteVersion 可用！$\r$\n$\r$\n当前安装包版本: v$LocalVersion$\r$\n$\r$\n是否前往下载最新版本？$\r$\n$\r$\n（选择[否]将继续安装当前版本）" IDYES OpenDownloadPage IDNO CheckUpdateDone
+      
+      OpenDownloadPage:
+        ; 打开 GitHub Releases 页面下载最新版
+        ExecShell "open" "https://github.com/AniBullet/BsKeyTools/releases/latest"
+        Quit ; 退出当前安装程序
+    ${EndIf}
+  
+  CheckUpdateDone:
+FunctionEnd
+
 ; 当安装程序初始化时执行
 Function .onInit
 !insertmacro MUI_LANGDLL_DISPLAY
+
+; 检查是否有新版本可用
+Call CheckForUpdates
 
 ;检查 3dsmax.exe 是否已运行
 nsProcess::_FindProcess "3dsmax.exe"

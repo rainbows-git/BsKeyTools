@@ -13,7 +13,9 @@
 [![GitHub last commit (main)](https://img.shields.io/github/last-commit/AniBullet/BsKeyTools/main?style=flat-square&logo=github&label=main)](https://github.com/AniBullet/BsKeyTools/tree/main)
 [![Latest Release](https://img.shields.io/badge/BsKeyTools-LatestReleases-success?style=flat-square&logo=github)](https://github.com/AniBullet/BsKeyTools/releases/latest)
 
-> **🌏 English Speakers:** [Full Documentation](https://deepwiki.com/AniBullet/BsKeyTools) available on DeepWiki
+[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/AniBullet/BsKeyTools)
+
+> **🌏 English Speakers:** Full Documentation available on DeepWiki
 
 </div>
 
@@ -134,6 +136,12 @@ BsKeyTools 是一个面向 **Autodesk 3ds Max** 的综合性动画工具集，
 ### 🤖 自动安装（推荐）
 
 ![自动安装](https://raw.githubusercontent.com/AniBullet/BsKeyTools/main/SetupPrev.gif)
+
+**版本更新检测**
+
+安装程序会自动检测是否有新版本可用，并提示您更新：
+
+![版本更新检测](https://raw.githubusercontent.com/AniBullet/BsKeyTools/main/PreviewRes/11.png)
 
 ### 🔧 手动安装
 
