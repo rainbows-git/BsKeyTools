@@ -31,12 +31,11 @@ New-Item -ItemType Directory -Path "$env:USERPROFILE\.cursor\rules" -Force
 # 2. 克隆仓库
 git clone --depth 1 https://github.com/obra/superpowers.git "$env:USERPROFILE\.codex\superpowers"
 
-# 3. 创建技能链接（需要管理员权限）
+# 3. 复制技能文件（不要用 Junction 链接，Cursor 无法正确扫描）
 # 注意：每个技能必须是 .cursor\skills\ 的直接子目录
-# 不能嵌套在 superpowers 子目录中
 $skillsSource = "$env:USERPROFILE\.codex\superpowers\skills"
 Get-ChildItem $skillsSource -Directory | ForEach-Object {
-    cmd /c mklink /J "$env:USERPROFILE\.cursor\skills\$($_.Name)" "$($_.FullName)"
+    Copy-Item -Path $_.FullName -Destination "$env:USERPROFILE\.cursor\skills\$($_.Name)" -Recurse -Force
 }
 
 # 4. 复制规则文件（从项目中复制，或手动创建）
@@ -139,11 +138,11 @@ Copy-Item ".\.cursor\rules\superpowers.md" "$env:USERPROFILE\.cursor\rules\super
 │
 └── .cursor\
     ├── skills\                         # 用户自定义技能目录
-    │   ├── brainstorming\              # 每个技能是直接子目录（Junction）
-    │   │   └── -> .codex\superpowers\skills\brainstorming
+    │   ├── brainstorming\              # 直接复制的技能文件（非链接）
+    │   │   └── SKILL.md
     │   ├── systematic-debugging\
-    │   │   └── -> .codex\superpowers\skills\systematic-debugging
-    │   └── ...（共 14 个链接）
+    │   │   └── SKILL.md
+    │   └── ...（共 14 个技能）
     │
     ├── skills-cursor\                  # Cursor 内置技能（系统保留，勿修改）
     │
@@ -151,23 +150,55 @@ Copy-Item ".\.cursor\rules\superpowers.md" "$env:USERPROFILE\.cursor\rules\super
         └── superpowers.md              # 全局规则文件
 ```
 
-> **重要**：Cursor 只扫描 `skills` 的**直接子目录**，不会递归扫描嵌套目录。
-> 所以不能用 `skills/superpowers/brainstorming/`，必须是 `skills/brainstorming/`。
+> **重要**：
+> - Cursor 只扫描 `skills` 的**直接子目录**，不能嵌套
+> - 必须使用**实际文件复制**，不能用 Junction 链接（Cursor 无法正确扫描链接）
 
 ---
 
 ## 🔄 更新 Superpowers
 
+重新运行安装脚本即可更新（脚本会自动拉取最新代码并覆盖安装）：
+
 ```powershell
-cd "$env:USERPROFILE\.codex\superpowers"
-git pull
+powershell -ExecutionPolicy Bypass -File ".\.cursor\install-superpowers.ps1"
 ```
 
-由于使用目录链接，更新自动生效。
+或者手动更新：
+
+```powershell
+# 1. 更新仓库
+cd "$env:USERPROFILE\.codex\superpowers"
+git pull
+
+# 2. 重新复制技能文件
+$src = "$env:USERPROFILE\.codex\superpowers\skills"
+$dst = "$env:USERPROFILE\.cursor\skills"
+Get-ChildItem $src -Directory | ForEach-Object {
+    Copy-Item -Path $_.FullName -Destination "$dst\$($_.Name)" -Recurse -Force
+}
+```
+
+---
+
+## 👀 查看已安装的技能
+
+1. 按 **Ctrl+Shift+J** 打开 Cursor Settings
+2. 点击 **Rules** 标签
+3. 在 **Agent Decides** 部分查看所有已安装的技能
 
 ---
 
 ## ❓ 常见问题
+
+### Q: 安装后技能不显示？
+A: 最常见的原因：
+
+1. **使用了 Junction 链接**：Cursor 无法正确扫描 Junction 链接，必须使用实际文件复制
+2. **技能嵌套太深**：必须是 `skills/brainstorming/` 而不是 `skills/superpowers/brainstorming/`
+3. **没有重启 Cursor**：安装后需要完全关闭并重新打开 Cursor
+
+运行安装脚本可自动修复这些问题。
 
 ### Q: 规则文件不生效？
 A: 重启 Cursor，或检查文件编码是否为 UTF-8。
@@ -176,23 +207,16 @@ A: 重启 Cursor，或检查文件编码是否为 UTF-8。
 A: 确保 `%USERPROFILE%\.cursor\rules\superpowers.md` 存在，并包含正确的规则内容。
 
 ### Q: 如何禁用某个技能？
-A: 编辑规则文件，删除或注释掉对应技能的描述。
+A: 在 Cursor Settings → Rules 中找到该技能，点击禁用。或删除对应的技能文件夹。
 
 ### Q: 如何添加自定义技能？
 A: 在 `%USERPROFILE%\.cursor\skills\` 下创建新目录，包含 `SKILL.md` 文件。
 > **注意**：不要使用 `skills-cursor` 目录，那是 Cursor 内置技能的保留目录。
-
-### Q: 安装后技能不显示？
-A: 检查技能是否安装到了正确的位置。Cursor 只扫描 `skills` 的**直接子目录**：
-- ✅ 正确：`%USERPROFILE%\.cursor\skills\brainstorming\SKILL.md`
-- ❌ 错误：`%USERPROFILE%\.cursor\skills\superpowers\brainstorming\SKILL.md`（嵌套太深）
-- ❌ 错误：`%USERPROFILE%\.cursor\skills-cursor\...`（内置技能目录）
-
-运行安装脚本可自动修复此问题。
 
 ---
 
 ## 📚 相关链接
 
 - [Superpowers 官方仓库](https://github.com/obra/superpowers)
-- [Cursor 官方文档](https://docs.cursor.com)
+- [Cursor Agent Skills 文档](https://cursor.com/cn/docs/context/skills)
+- [Agent Skills 开放标准](https://agentskills.io)

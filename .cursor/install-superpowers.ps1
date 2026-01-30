@@ -74,10 +74,11 @@ else {
     }
 }
 
-# Step 4: Create skill links
+# Step 4: Copy skills to Cursor skills directory
 # Cursor requires each skill to be a DIRECT subdirectory of ~/.cursor/skills/
 # NOT nested like ~/.cursor/skills/superpowers/brainstorming/
-Write-Host "[4/5] Creating skill links..."
+# NOTE: Must use actual file copy (NOT Junction links) - Cursor cannot scan Junction links properly
+Write-Host "[4/5] Installing skills..."
 
 $skillDirs = Get-ChildItem $skillsSourcePath -Directory -ErrorAction SilentlyContinue
 if ($null -eq $skillDirs -or $skillDirs.Count -eq 0) {
@@ -86,40 +87,42 @@ if ($null -eq $skillDirs -or $skillDirs.Count -eq 0) {
     exit 1
 }
 
-$createdCount = 0
-$skippedCount = 0
+$installedCount = 0
+$updatedCount = 0
 
 foreach ($skillDir in $skillDirs) {
-    $linkPath = Join-Path $cursorSkillsDir $skillDir.Name
-    $skillMdPath = Join-Path $linkPath "SKILL.md"
+    $targetPath = Join-Path $cursorSkillsDir $skillDir.Name
+    $skillMdPath = Join-Path $targetPath "SKILL.md"
+    $isUpdate = Test-Path $targetPath
     
-    # Check if valid link already exists
-    if ((Test-Path $linkPath) -and (Test-Path $skillMdPath)) {
-        $skippedCount++
-        continue
+    # Remove old Junction links or existing directory for clean install/update
+    if (Test-Path $targetPath) {
+        $item = Get-Item $targetPath -Force
+        if ($item.LinkType -eq "Junction") {
+            # Remove Junction link
+            cmd /c "rmdir `"$targetPath`"" 2>$null
+        }
+        else {
+            # Remove regular directory
+            Remove-Item -Path $targetPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
     
-    # Remove broken link/dir if exists
-    if (Test-Path $linkPath) {
-        Remove-Item -Path $linkPath -Recurse -Force -ErrorAction SilentlyContinue
-    }
-    
-    # Create junction
-    $null = cmd /c mklink /J "$linkPath" "$($skillDir.FullName)" 2>&1
+    # Copy skill directory
+    Copy-Item -Path $skillDir.FullName -Destination $targetPath -Recurse -Force
     
     if (Test-Path $skillMdPath) {
-        $createdCount++
-    }
-    else {
-        # Fallback: copy directory
-        Copy-Item -Path $skillDir.FullName -Destination $linkPath -Recurse -Force
-        if (Test-Path $skillMdPath) {
-            $createdCount++
+        if ($isUpdate) {
+            $updatedCount++
+        }
+        else {
+            $installedCount++
         }
     }
 }
 
-Write-Host "  [OK] $createdCount created, $skippedCount already exist" -ForegroundColor Green
+$totalCount = $installedCount + $updatedCount
+Write-Host "  [OK] $totalCount skills ($installedCount new, $updatedCount updated)" -ForegroundColor Green
 
 # Step 5: Create rule file
 Write-Host "[5/5] Creating rule file..."
@@ -173,9 +176,11 @@ Write-Host "========================================"
 Write-Host ""
 Write-Host "Installed:"
 Write-Host "  - Repo: $superpowersDir"
-Write-Host "  - Skills: $cursorSkillsDir (14 skills linked)"
+Write-Host "  - Skills: $cursorSkillsDir ($totalCount skills)"
 Write-Host "  - Rule: $globalRulePath"
 Write-Host ""
-Write-Host "Usage: Restart Cursor, AI will use superpowers automatically"
+Write-Host "View skills: Cursor Settings (Ctrl+Shift+J) -> Rules -> Agent Decides"
+Write-Host ""
+Write-Host "Usage: Restart Cursor, then skills will appear and work automatically"
 Write-Host ""
 Read-Host "Press Enter to exit"
