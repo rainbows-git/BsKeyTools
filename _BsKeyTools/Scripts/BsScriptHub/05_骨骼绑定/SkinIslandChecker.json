@@ -10,7 +10,7 @@
         "飞点"
     ],
     "preview": "",
-    "script": "BulletScripts/Quote/SkinIslandChecker.ms",
+    "script": "SkinIslandChecker.ms",
     "url": "",
     "tutorial": ""
 }
