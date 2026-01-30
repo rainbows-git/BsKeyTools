@@ -8,7 +8,8 @@ Write-Host "========================================"
 Write-Host ""
 
 # Config paths
-$superpowersRepo = "https://github.com/obra/superpowers.git"
+$superpowersRepoSSH = "git@github.com:obra/superpowers.git"
+$superpowersRepoHTTPS = "https://github.com/obra/superpowers.git"
 $codexDir = Join-Path $env:USERPROFILE ".codex"
 $superpowersDir = Join-Path $codexDir "superpowers"
 # NOTE: Use ~/.cursor/skills/ (NOT skills-cursor/) for user-defined skills
@@ -42,15 +43,53 @@ $repoValid = (Test-Path $superpowersDir) -and (Test-Path $skillsSourcePath)
 if ($repoValid) {
     Write-Host "  [-] Repo exists, updating..."
     Push-Location $superpowersDir
+    
+    # Clean up git lock files if they exist
+    $gitDir = Join-Path $superpowersDir ".git"
+    if (Test-Path (Join-Path $gitDir "FETCH_HEAD.lock")) { 
+        Remove-Item (Join-Path $gitDir "FETCH_HEAD.lock") -Force -ErrorAction SilentlyContinue 
+    }
+    if (Test-Path (Join-Path $gitDir "index.lock")) { 
+        Remove-Item (Join-Path $gitDir "index.lock") -Force -ErrorAction SilentlyContinue 
+    }
+    
+    # Get current remote URL
+    $currentRemote = git remote get-url origin 2>&1
+    
+    # Try to pull
     $pullResult = git pull 2>&1
     $pullExitCode = $LASTEXITCODE
-    Pop-Location
+    
     if ($pullExitCode -eq 0) {
         Write-Host "  [OK] Updated" -ForegroundColor Green
     }
     else {
-        Write-Host "  [!] Update failed: $pullResult" -ForegroundColor Yellow
+        # Pull failed, try switching remote URL
+        Write-Host "  [!] Update failed, trying alternate URL..." -ForegroundColor Yellow
+        
+        if ($currentRemote -match "^https://") {
+            # Switch to SSH
+            git remote set-url origin $superpowersRepoSSH 2>&1 | Out-Null
+            $pullResult = git pull 2>&1
+            $pullExitCode = $LASTEXITCODE
+        }
+        else {
+            # Switch to HTTPS
+            git remote set-url origin $superpowersRepoHTTPS 2>&1 | Out-Null
+            $pullResult = git pull 2>&1
+            $pullExitCode = $LASTEXITCODE
+        }
+        
+        if ($pullExitCode -eq 0) {
+            Write-Host "  [OK] Updated with alternate URL" -ForegroundColor Green
+        }
+        else {
+            Write-Host "  [!] Update failed: $pullResult" -ForegroundColor Yellow
+            Write-Host "  Continuing with existing local copy..." -ForegroundColor Gray
+        }
     }
+    
+    Pop-Location
 }
 else {
     # Remove incomplete/corrupted directory if exists
@@ -59,18 +98,33 @@ else {
         Remove-Item -Path $superpowersDir -Recurse -Force -ErrorAction SilentlyContinue
     }
     
-    Write-Host "  [-] Cloning repo..."
-    $cloneResult = git clone --depth 1 $superpowersRepo $superpowersDir 2>&1
+    # Try SSH first, fallback to HTTPS if it fails
+    Write-Host "  [-] Cloning repo (trying SSH)..."
+    $cloneResult = git clone --depth 1 $superpowersRepoSSH $superpowersDir 2>&1
     $cloneExitCode = $LASTEXITCODE
     
     if ($cloneExitCode -eq 0 -and (Test-Path $skillsSourcePath)) {
-        Write-Host "  [OK] Cloned" -ForegroundColor Green
+        Write-Host "  [OK] Cloned via SSH" -ForegroundColor Green
     }
     else {
-        Write-Host "  [X] Clone failed: $cloneResult" -ForegroundColor Red
-        Write-Host "  Please check network connection and try again."
-        Read-Host "Press Enter to exit"
-        exit 1
+        # SSH failed, try HTTPS
+        Write-Host "  [-] SSH failed, trying HTTPS..."
+        if (Test-Path $superpowersDir) {
+            Remove-Item -Path $superpowersDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+        $cloneResult = git clone --depth 1 $superpowersRepoHTTPS $superpowersDir 2>&1
+        $cloneExitCode = $LASTEXITCODE
+        
+        if ($cloneExitCode -eq 0 -and (Test-Path $skillsSourcePath)) {
+            Write-Host "  [OK] Cloned via HTTPS" -ForegroundColor Green
+        }
+        else {
+            Write-Host "  [X] Clone failed: $cloneResult" -ForegroundColor Red
+            Write-Host "  Please check network connection and try again."
+            Read-Host "Press Enter to exit"
+            exit 1
+        }
     }
 }
 
@@ -95,21 +149,15 @@ foreach ($skillDir in $skillDirs) {
     $skillMdPath = Join-Path $targetPath "SKILL.md"
     $isUpdate = Test-Path $targetPath
     
-    # Remove old Junction links or existing directory for clean install/update
+    # Remove existing directory/link completely
     if (Test-Path $targetPath) {
-        $item = Get-Item $targetPath -Force
-        if ($item.LinkType -eq "Junction") {
-            # Remove Junction link
-            cmd /c "rmdir `"$targetPath`"" 2>$null
-        }
-        else {
-            # Remove regular directory
-            Remove-Item -Path $targetPath -Recurse -Force -ErrorAction SilentlyContinue
-        }
+        Remove-Item -Path $targetPath -Recurse -Force -ErrorAction SilentlyContinue
+        # Brief pause to ensure file handles are released
+        Start-Sleep -Milliseconds 100
     }
     
     # Copy skill directory
-    Copy-Item -Path $skillDir.FullName -Destination $targetPath -Recurse -Force
+    Copy-Item -Path $skillDir.FullName -Destination $targetPath -Recurse -Force -ErrorAction SilentlyContinue
     
     if (Test-Path $skillMdPath) {
         if ($isUpdate) {
@@ -165,7 +213,15 @@ IF A SKILL APPLIES, YOU MUST USE IT.
 </EXTREMELY_IMPORTANT>
 '@
 
-Set-Content -Path $globalRulePath -Value $ruleContent -Encoding UTF8
+# Remove readonly attribute if file exists
+if (Test-Path $globalRulePath) {
+    $file = Get-Item $globalRulePath -Force
+    if ($file.IsReadOnly) {
+        $file.IsReadOnly = $false
+    }
+}
+
+Set-Content -Path $globalRulePath -Value $ruleContent -Encoding UTF8 -ErrorAction SilentlyContinue
 Write-Host "  [OK] Rule file created" -ForegroundColor Green
 
 # Done
