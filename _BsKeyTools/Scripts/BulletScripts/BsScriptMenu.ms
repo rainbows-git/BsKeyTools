@@ -370,6 +370,25 @@ rollout rolBsScriptMenu "BsScriptMenuConfig" width:460 height:160
 				callbacks.removeScripts id:#menuBsScriptMenu
 			)
 
+			-- 清理所有 BsScriptMenu 相关的宏脚本
+			local macroCategory = "_[BsScriptMenu]"
+			try
+			(
+				local macroArr = macros.list macroCategory
+				if macroArr != undefined and macroArr.count > 0 then
+				(
+					for macroName in macroArr do
+					(
+						try
+						(
+							macros.unload macroCategory macroName
+						)
+						catch()
+					)
+				)
+			)
+			catch()
+
 			arrDelMs = #(((getDir #StartupScripts)+ "\\BsScriptMenuStartup.ms"),\
 			((getDir #Scripts)+ @"\\BulletScripts\\BsScriptMenu.ms"),\
 			((getDir #Scripts)+ @"\\BulletScripts\\BsScriptMenuMacro.ms"))

@@ -1831,6 +1831,36 @@ rcmenu menuConfig
 					menuMan.updateMenuBar()
 				)
 			)
+			else
+			(
+				-- 高版本移除BsKeyTools菜单回调
+				callbacks.removeScripts id:#menuBsKeyTools
+			)
+
+			-- 清理所有 BsKeyTools 相关的宏脚本
+			try
+			(
+				local bulletCategories = #("_[BulletTools]", "_[BsScriptMenu]")
+				for macroCategory in bulletCategories do
+				(
+					local macroArr = macros.list macroCategory
+					if macroArr != undefined and macroArr.count > 0 then
+					(
+						for macroName in macroArr do
+						(
+							try
+							(
+								macros.unload macroCategory macroName
+							)
+							catch()
+						)
+					)
+				)
+			)
+			catch()
+
+			-- 清理 BsScriptMenu 相关的菜单回调（如果存在）
+			try(callbacks.removeScripts id:#menuBsScriptMenu)catch()
 
 			arrDelPath = #(((getDir #Scripts)+ "\\BulletScripts"),((getDir #maxroot) + "\\UI_ln\\Icons\\cstoolIcons"))
 			arrDelMs = #(((getDir #StartupScripts)+ "\\BulletKeyTools.ms"),\
@@ -1839,7 +1869,8 @@ rcmenu menuConfig
 			((getDir #StartupScripts)+ "\\BsTrackBarToolsStartup.ms"),\
 			((getDir #StartupScripts)+ "\\BsCleanVirusStartup.ms"),\
 			((getDir #StartupScripts)+ "\\EXTimelineStartup.ms"), \
-			((getDir #StartupScripts)+ "\\BsCustomScriptsStartup.ms"))
+			((getDir #StartupScripts)+ "\\BsCustomScriptsStartup.ms"),\
+			((getDir #StartupScripts)+ "\\BsScriptMenuStartup.ms"))
 			for d in arrDelPath do (fnDelDir d)
 			for f in arrDelMs do (fnDelFileDir f)
 			try(cui.UnRegisterDialogBar rolBsKeyTools) catch()
