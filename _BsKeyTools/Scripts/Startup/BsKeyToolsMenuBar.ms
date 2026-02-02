@@ -105,12 +105,22 @@ fn fnDelDir dirDel =
 	)
 )
 try(FileIn ((getDir #scripts) + "\\BulletScripts\\fnSaveLoadConfig.ms"))catch()
+
+-- 创建菜单的函数（延迟执行，避免在UI重载期间崩溃）
+fn fnCreateBsKeyToolsMenu =
 (
     curMaxVersion = ((maxVersion())[1] / 1000)
     if curMaxVersion < 27 then
     (
         local strMenuName = "BsKeyTools"
         local arrToolName = #("BsKeyTools","🎮 BsKeyTools","自动收缩面板","帮助 / Help","自动检测更新","自动启动脚本","+菜单栏按钮-","工具窗口  位置重置")
+        
+        -- 检查菜单是否已存在，避免重复创建导致崩溃
+        if (menuMan.findMenu strMenuName) != undefined then
+        (
+            -- 菜单已存在，不需要重新创建（避免在UI重载期间操作菜单）
+            return undefined
+        )
         
         for i in arrToolName do
         (
@@ -263,6 +273,19 @@ try(FileIn ((getDir #scripts) + "\\BulletScripts\\fnSaveLoadConfig.ms"))catch()
     )
 )
 
+-- 使用延迟执行来避免在Max启动或UI重载期间创建菜单导致崩溃
+-- 使用单次回调，确保只在Max完全启动后才创建菜单
+if (callbacks.notificationParam() == undefined) then
+(
+    -- 在startup执行期间，使用systemPostNew延迟创建菜单
+    callbacks.addScript #systemPostNew "fnCreateBsKeyToolsMenu(); try(callbacks.removeScripts id:#BsKeyToolsMenuInit)catch()" id:#BsKeyToolsMenuInit persistent:false
+)
+else
+(
+    -- 如果是手动执行此脚本（非startup），则立即创建
+    fnCreateBsKeyToolsMenu()
+)
+
 ---通用方法预加载------
 global addToolBarButton
 fn addToolBarButton macro cat txt remove: false =
@@ -398,7 +421,10 @@ fn addToolBarButton macro cat txt remove: false =
             
     ) catch(try(massagebox (getCurrentException()));catch();messagebox "请手动处理Toolbar!             \r\n" title: "错误!")
 
-    colorman.reInitIcons()
+    -- colorman.reInitIcons() 
+    -- 注释原因：此函数在低版本Max(2024及以下)切换颜色主题时会导致崩溃
+    -- 因为主题切换时Max会重新加载UI配置，此时调用reInitIcons会触发竞态条件
+    -- cui.loadConfig已经会自动更新图标，无需手动调用reInitIcons
 
     if (not remove) then (messageBox "添加工具栏快捷按钮完成，请注意蓝底白字“S”图标！                                    \r\n" title: "BsKeyTools")
     if (remove) then (messageBox "尝试删除工具栏快捷按钮完成！(添加时也会运行一次)                                      \r\n" title: "BsKeyTools")

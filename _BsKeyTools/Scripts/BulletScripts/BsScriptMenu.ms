@@ -569,4 +569,31 @@ rollout rolBsScriptMenu "BsScriptMenuConfig" width:460 height:160
         fnUninstallScriptMenu()
     )
 )
-fnRefreshMenu()
+
+-- 修复：移除立即执行的菜单创建，改为延迟执行
+-- 原因：在UI重载期间（如切换颜色主题）执行菜单创建会导致Max崩溃
+-- 使用systemPostNew回调确保只在Max完全启动后才创建菜单
+if (callbacks.notificationParam() == undefined) then
+(
+    -- 在startup执行期间，检查菜单是否已存在
+    local curMaxVersion = ((maxVersion())[1] / 1000)
+    if curMaxVersion < 27 then
+    (
+        -- 低版本：检查菜单是否已存在，避免重复创建
+        if (menuMan.findMenu iniBsScriptMenuName) == undefined then
+        (
+            -- 菜单不存在，使用回调延迟创建
+            callbacks.addScript #systemPostNew "try(fnRefreshMenu())catch(); try(callbacks.removeScripts id:#BsScriptMenuInit)catch()" id:#BsScriptMenuInit persistent:false
+        )
+    )
+    else
+    (
+        -- 高版本：使用cuiRegisterMenus回调，已经是延迟执行
+        fnRefreshMenu()
+    )
+)
+else
+(
+    -- 如果是手动执行此脚本（非startup），则立即创建
+    fnRefreshMenu()
+)
