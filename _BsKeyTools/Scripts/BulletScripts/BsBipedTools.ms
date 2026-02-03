@@ -2,6 +2,9 @@
 -- By Bullet.S 自用修改版,功能大集合,完全开源免费仅供学习使用,请勿用于商业用途,否则后果自负    
 Reference： SoxBipedAssist_v0.423 & Biped Helper v3.1  
 Since 2023.03
+v2.3
+- 修复biped改名后导致手指弯曲功能失效的问题（一方狂三）
+
 v2.2
 1.修复回调报错，感谢 夏奈，狂三
 
@@ -47,7 +50,7 @@ global offsetBsAboutPanel = [0,0]
 global stateBsAboutPanel = 0
 global dotLinkLabel1
 global dotLinkLabel2
-global verBsBipedTools = "v2.2"
+global verBsBipedTools = "v2.3"
 
 -- 文件加载锁，防止在文件加载期间触发回调导致Script Controller编辑器弹出
 global BsBT_FileLoadingLock = false
@@ -563,13 +566,12 @@ rollout rolBSRightFootPivots "R-Foot" width:90
 
 rollout rolBSFingers "BsBipedTools_Fingers" width:300 height:230
 (
-	-- ← 新增：手指结构变量
+	-- 手指结构变量
 	local rIsKnuckles = false
 	local lIsKnuckles = false
 	local mc_spreadMaxAngle = 45.0
-	-- 新增截断 →
 
-	checkbutton chbTips "暂不支持4节手指" pos:[100,5] height:20 highlightColor:rolBsBipedTools.mcScanBiped checked:true
+	checkbutton chbTips "支持多节手指，指节模式" pos:[80,5] height:20 highlightColor:rolBsBipedTools.mcScanBiped checked:true
 
 	checkbutton chbRFingers "R Fingers" pos:[40,160] width:100 highlightColor:rolBsBipedTools.mcRightFinger checked:true
 	checkbutton chbLFingers "L Fingers" pos:[160,160] width:100 highlightColor:rolBsBipedTools.mcLeftFinger checked:true
@@ -673,432 +675,446 @@ rollout rolBSFingers "BsBipedTools_Fingers" width:300 height:230
 		)
 	)
 
-	  -- ← 新增：获取Biped名称
-	fn getBipedName =
-	( 
-	    if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) then return ""
-	    try
-	    ( 
-	      local bipName = rolBsBipedTools.m_workingBipRoot.name
-	      return bipName
-	    ) 
-	    catch() 
-	    return ""
-	) 
-
-	-- ← 新增：获取Biped控制器
+	-- ========== 核心检测函数 ==========
+	
+	-- 获取Biped控制器
 	fn getBipedController =
 	( 
 	    if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) then return undefined
 	    try
 	    ( 
-	      if classof rolBsBipedTools.m_workingBipRoot.controller == Vertical_Horizontal_Turn then
-	        return rolBsBipedTools.m_workingBipRoot.controller
+	        if classof rolBsBipedTools.m_workingBipRoot.controller == Vertical_Horizontal_Turn then
+	            return rolBsBipedTools.m_workingBipRoot.controller
 	    ) 
 	    catch() 
 	    return undefined
 	) 
 
-	 -- 检测是否为Knuckles模式
+	-- 检测是否为Knuckles模式
 	fn detectKnucklesMode =
 	( 
 	    local isKnuckles = false
 	    try
 	    ( 
-	      local bipCtrl = getBipedController() 
-	      if bipCtrl != undefined then
-	      ( 
-	        try
+	        local bipCtrl = getBipedController() 
+	        if bipCtrl != undefined then
 	        ( 
-	          isKnuckles = bipCtrl.knuckles
+	            try ( isKnuckles = bipCtrl.knuckles ) catch() 
 	        ) 
-	        catch() 
-	      ) 
 	    ) 
 	    catch() 
 	    return isKnuckles
 	) 
-	
-  -- ← 新增：检测手指结构（返回每根手指的节数）
-  fn DetectFingerStructure side =
-  ( 
-    local bipedName = getBipedName() 
-    if bipedName == "" then return undefined
-    
-    local handSide = side
-    local fingerInfo = #()  -- 存储每根手指的信息：#(fingerIndex, segmentCount)
-    
-    -- 检测Finger0-4每根手指
-    for fingerIdx = 0 to 4 do
-    ( 
-      local segmentCount = 0
-      local fingerName = "Finger" + fingerIdx as string
-      
-      -- 检测最多4节（Knuckles模式）
-      for segIdx = 0 to 3 do
-      ( 
-        local boneName = if segIdx == 0 then
-          (bipedName + " " + handSide + " " + fingerName)
-        else
-          (bipedName + " " + handSide + " " + fingerName + segIdx as string)
-        
-        local bone = getNodeByName boneName
-        if bone != undefined and not isDeleted bone then
-          segmentCount = segIdx + 1
-        else
-          exit  -- 遇到不存在的节就停止检测
-      ) 
-      
-      append fingerInfo #(fingerIdx, segmentCount)
-    ) 
-    
-    return fingerInfo
-  ) 
-  -- 更新按钮启用/禁用状态
-  fn UpdateFingerButtonStates =
-  ( 
-    local bipedName = getBipedName() 
-    if bipedName == "" then
-    ( 
-      -- 没有biped时禁用所有按钮
-      local allBtns = #(
-        select_rthumb1_btn, select_rthumb2_btn, select_rthumb3_btn,
-        select_rfing11_btn, select_rfing12_btn, select_rfing13_btn,
-        select_rfing21_btn, select_rfing22_btn, select_rfing23_btn,
-        select_rfing31_btn, select_rfing32_btn, select_rfing33_btn,
-        select_rfing41_btn, select_rfing42_btn, select_rfing43_btn,
-        select_lthumb1_btn, select_lthumb2_btn, select_lthumb3_btn,
-        select_lfing11_btn, select_lfing12_btn, select_lfing13_btn,
-        select_lfing21_btn, select_lfing22_btn, select_lfing23_btn,
-        select_lfing31_btn, select_lfing32_btn, select_lfing33_btn,
-        select_lfing41_btn, select_lfing42_btn, select_lfing43_btn,
-        btnFingerLineR1, btnFingerLineR2, btnFingerLineR3, btnFingerLineR4, btnFingerLineR5,
-        btnFingerLineL1, btnFingerLineL2, btnFingerLineL3, btnFingerLineL4, btnFingerLineL5
-      )
-      for btn in allBtns do
-      ( 
-        btn.enabled = false
-        btn.highlightColor = (color 128 128 128)
-      )
-      return()
-    )
-    
-    -- 检测右手手指结构
-    local rFingerInfo = DetectFingerStructure "R"
-    local rIsKnuckles = detectKnucklesMode()
-    
-    -- 检测左手手指结构
-    local lFingerInfo = DetectFingerStructure "L"
-    local lIsKnuckles = detectKnucklesMode()
-    
-    -- 右手按钮数组：[手指索引][节索引] = 按钮
-    local rBtnMap = #(
-      #(select_rthumb1_btn, select_rthumb2_btn, select_rthumb3_btn),      -- Finger0
-      #(select_rfing11_btn, select_rfing12_btn, select_rfing13_btn),      -- Finger1
-      #(select_rfing21_btn, select_rfing22_btn, select_rfing23_btn),      -- Finger2
-      #(select_rfing31_btn, select_rfing32_btn, select_rfing33_btn),      -- Finger3
-      #(select_rfing41_btn, select_rfing42_btn, select_rfing43_btn)       -- Finger4
-    )
-    
-    -- 左手按钮数组
-    local lBtnMap = #(
-      #(select_lthumb1_btn, select_lthumb2_btn, select_lthumb3_btn),
-      #(select_lfing11_btn, select_lfing12_btn, select_lfing13_btn),
-      #(select_lfing21_btn, select_lfing22_btn, select_lfing23_btn),
-      #(select_lfing31_btn, select_lfing32_btn, select_lfing33_btn),
-      #(select_lfing41_btn, select_lfing42_btn, select_lfing43_btn)
-    )
-    
-    -- 单指选择按钮
-    local rLineBtns = #(btnFingerLineR1, btnFingerLineR2, btnFingerLineR3, btnFingerLineR4, btnFingerLineR5)
-    local lLineBtns = #(btnFingerLineL1, btnFingerLineL2, btnFingerLineL3, btnFingerLineL4, btnFingerLineL5)
-    
-    -- 更新右手按钮
-    for i = 1 to 5 do
-    ( 
-      local fingerIdx = i - 1
-      local segCount = rFingerInfo[i][2]
-      local btns = rBtnMap[i]
-      
-      -- Knuckles模式：需要跳过第一节（掌骨节）
-      local actualSegCount = if rIsKnuckles and fingerIdx != 0 then
-        (if segCount > 1 then segCount - 1 else 0)
-      else
-        segCount
-      
-      -- 更新3个节按钮
-      for j = 1 to 3 do
-      ( 
-        if j <= actualSegCount then
-        ( 
-          btns[j].enabled = true
-          btns[j].highlightColor = if fingerIdx == 0 then
-            rolBsBipedTools.mcRightThumb
-          else
-            rolBsBipedTools.mcRightFinger
-        )
-        else
-        ( 
-          btns[j].enabled = false
-          btns[j].highlightColor = (color 128 128 128)
-        )
-      )
-      
-      -- 更新单指选择按钮
-      if segCount > 0 then
-      ( 
-        rLineBtns[i].enabled = true
-        rLineBtns[i].highlightColor = if fingerIdx == 0 then
-          (rolBsBipedTools.mcRightThumb * 0.7)
-        else
-          (rolBsBipedTools.mcRightFinger * 0.7)
-      )
-      else
-      ( 
-        rLineBtns[i].enabled = false
-        rLineBtns[i].highlightColor = (color 128 128 128)
-      )
-    )
-    
-    -- 更新左手按钮
-    for i = 1 to 5 do
-    ( 
-      local fingerIdx = i - 1
-      local segCount = lFingerInfo[i][2]
-      local btns = lBtnMap[i]
-      
-      -- Knuckles模式：需要跳过第一节（掌骨节）
-      local actualSegCount = if lIsKnuckles and fingerIdx != 0 then
-        (if segCount > 1 then segCount - 1 else 0)
-      else
-        segCount
-      
-      -- 更新3个节按钮
-      for j = 1 to 3 do
-      ( 
-        if j <= actualSegCount then
-        ( 
-          btns[j].enabled = true
-          btns[j].highlightColor = if fingerIdx == 0 then
-            rolBsBipedTools.mcLeftThumb
-          else
-            rolBsBipedTools.mcLeftFinger
-        )
-        else
-        ( 
-          btns[j].enabled = false
-          btns[j].highlightColor = (color 128 128 128)
-        )
-      )
-      
-      -- 更新单指选择按钮
-      if segCount > 0 then
-      ( 
-        lLineBtns[i].enabled = true
-        lLineBtns[i].highlightColor = if fingerIdx == 0 then
-          (rolBsBipedTools.mcLeftThumb * 0.7)
-        else
-          (rolBsBipedTools.mcLeftFinger * 0.7)
-      )
-      else
-      ( 
-        lLineBtns[i].enabled = false
-        lLineBtns[i].highlightColor = (color 128 128 128)
-      )
-    )
-  )
-  -- 新增截断 →
 
+	-- 检测普通模式下每根手指的节数
+	fn DetectFingerSegments side =
+	(
+	    if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) then return 3
+	    
+	    local fingerIndex = if side == "L" then 3 else 4
+	    
+	    -- 统计总共有多少个有效Link
+	    local totalLinks = 0
+	    for i = 1 to 25 do
+	    (
+	        try
+	        (
+	            local node = biped.getNode rolBsBipedTools.m_workingBipRoot fingerIndex link:i
+	            if node != undefined and not isDeleted node then
+	                totalLinks += 1
+	        )
+	        catch()
+	    )
+	    
+	    -- 5根手指，计算每根手指平均节数
+	    if totalLinks <= 5 then return 1
+	    else if totalLinks <= 10 then return 2
+	    else return 3
+	)
 
-	-- ← 新增：选择单根手指所有骨骼
-	fn SelectWholeFinger side fingerIndex =
-	( 
-	    local bipedName = getBipedName() 
-	    if bipedName == "" then return false
-	    
-	    local isKnuckles = detectKnucklesMode() 
-	    local handSide = side
-	    local fingerBones = #() 
-	    
-	    if fingerIndex == 0 then
-	    ( 
-	      -- 拇指：Finger0, Finger01, Finger02, (Finger03在Knuckles可能不存在)
-	      local f0 = getNodeByName (bipedName + " " + handSide + " Finger0") 
-	      local f01 = getNodeByName (bipedName + " " + handSide + " Finger01") 
-	      local f02 = getNodeByName (bipedName + " " + handSide + " Finger02") 
-	      local f03 = getNodeByName (bipedName + " " + handSide + " Finger03") 
-	      if f0 != undefined and not isDeleted f0 then append fingerBones f0
-	      if f01 != undefined and not isDeleted f01 then append fingerBones f01
-	      if f02 != undefined and not isDeleted f02 then append fingerBones f02
-	      if f03 != undefined and not isDeleted f03 then append fingerBones f03
-	    ) 
+	-- ★★★ 核心函数：获取手指Link起始位置 ★★★
+	-- 普通模式: linkStart = fingerIdx * segsPerFinger + 1
+	-- Knuckles模式: 拇指3节在前，其他手指4节
+	fn GetFingerLinkStart fingerIdx isKnuckles side =
+	(
+	    if isKnuckles then
+	    (
+	        -- Knuckles模式：拇指3节从Link 1开始，其他手指从Link 5开始每隔4
+	        if fingerIdx == 0 then
+	            return 1  -- 拇指
+	        else
+	            return (5 + (fingerIdx - 1) * 4)  -- 食指5, 中指9, 无名指13, 小指17
+	    )
 	    else
-	    ( 
-		    -- Finger1-4
-		    local fingerName = "Finger" + fingerIndex as string
-		      
-		    if isKnuckles then
-		    ( 
-		        -- Knuckles模式：包含掌骨节(Finger1/2/3/4) + 3指节(Finger11/21/31/41等)
-		        local f0 = getNodeByName (bipedName + " " + handSide + " " + fingerName) 
-		        local f1 = getNodeByName (bipedName + " " + handSide + " " + fingerName + "1") 
-		        local f2 = getNodeByName (bipedName + " " + handSide + " " + fingerName + "2") 
-		        local f3 = getNodeByName (bipedName + " " + handSide + " " + fingerName + "3") 
-		        if f0 != undefined and not isDeleted f0 then append fingerBones f0
-		        if f1 != undefined and not isDeleted f1 then append fingerBones f1
-		        if f2 != undefined and not isDeleted f2 then append fingerBones f2
-		        if f3 != undefined and not isDeleted f3 then append fingerBones f3
-		    ) 
-		    else
-		    ( 
-		        -- 标准模式：Finger1/2/3/4 + Finger11/21等
-		        local f0 = getNodeByName (bipedName + " " + handSide + " " + fingerName) 
-		        local f1 = getNodeByName (bipedName + " " + handSide + " " + fingerName + "1") 
-		        local f2 = getNodeByName (bipedName + " " + handSide + " " + fingerName + "2") 
-		        if f0 != undefined and not isDeleted f0 then append fingerBones f0
-		        if f1 != undefined and not isDeleted f1 then append fingerBones f1
-		        if f2 != undefined and not isDeleted f2 then append fingerBones f2
-		    ) 
-	    ) 
-	    
-	    if fingerBones.count > 0 then
-	    ( 
-	      select fingerBones
-	      return true
-	    ) 
-	    return false
-	) 
+	    (
+	        -- 普通模式：每根手指占相同节数
+	        local segsPerFinger = DetectFingerSegments side
+	        return (fingerIdx * segsPerFinger + 1)
+	    )
+	)
 
-	-- 选择所有手指（包含拇指Finger0）
-	fn SelectAllFingers side =
+	-- ★★★ 获取指定手指的节数 ★★★
+	fn GetFingerSegmentCount fingerIdx isKnuckles side =
+	(
+	    if isKnuckles then
+	    (
+	        if fingerIdx == 0 then
+	            return 3  -- 拇指3节
+	        else
+	            return 4  -- 其他手指4节(含掌骨)
+	    )
+	    else
+	    (
+	        return DetectFingerSegments side
+	    )
+	)
+
+	-- ★★★ 检测手指结构信息 ★★★
+	fn DetectFingerStructure side =
 	( 
-	    local bipedName = getBipedName() 
-	    if bipedName == "" then return false
+	    if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) then return undefined
 	    
-	    local isKnuckles = detectKnucklesMode() 
-	    local handSide = side
-	    local allFingerBones = #() 
+	    local fingerIndex = if side == "L" then 3 else 4
+	    local isKnuckles = detectKnucklesMode()
+	    local fingerInfo = #()
 	    
-	    -- 选择Finger0-4所有骨骼（包含拇指）
 	    for fingerIdx = 0 to 4 do
 	    ( 
-	      local fingerName = "Finger" + fingerIdx as string
-	      
-	      if isKnuckles then
-	      ( 
-	        -- Knuckles模式：4节（拇指3节）
-	        if fingerIdx == 0 then
+	        local linkStart = GetFingerLinkStart fingerIdx isKnuckles side
+	        local maxSegs = GetFingerSegmentCount fingerIdx isKnuckles side
+	        local segmentCount = 0
+	        local actualLinks = #()
+	        
+	        -- 只检测这根手指应有的节数
+	        for i = 0 to (maxSegs - 1) do
 	        ( 
-	          -- 拇指：Finger0, Finger01, Finger02
-	          local f0 = getNodeByName (bipedName + " " + handSide + " " + fingerName) 
-	          local f1 = getNodeByName (bipedName + " " + handSide + " " + fingerName + "1") 
-	          local f2 = getNodeByName (bipedName + " " + handSide + " " + fingerName + "2") 
-	          if f0 != undefined and not isDeleted f0 then append allFingerBones f0
-	          if f1 != undefined and not isDeleted f1 then append allFingerBones f1
-	          if f2 != undefined and not isDeleted f2 then append allFingerBones f2
+	            try
+	            ( 
+	                local node = biped.getNode rolBsBipedTools.m_workingBipRoot fingerIndex link:(linkStart + i)
+	                if node != undefined and not isDeleted node then
+	                (
+	                    segmentCount += 1
+	                    append actualLinks (linkStart + i)
+	                )
+	            )
+	            catch()
 	        )
-	        else
+	        
+	        append fingerInfo #(fingerIdx, segmentCount, linkStart, actualLinks)
+	    )
+	    
+	    return fingerInfo
+	) 
+
+	-- ★★★ 获取手指骨骼节点（用于UI按钮）★★★
+	-- segmentIdx 从1开始：1=第一节, 2=第二节, 3=第三节
+	fn GetFingerBone side fingerIdx segmentIdx =
+	( 
+	    if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) then return undefined
+	    
+	    local fingerIndex = if side == "L" then 3 else 4
+	    local isKnuckles = detectKnucklesMode()
+	    local linkStart = GetFingerLinkStart fingerIdx isKnuckles side
+	    
+	    -- Knuckles模式下，非拇指手指，UI的segmentIdx需要+1跳过掌骨节
+	    local offset = 0
+	    if isKnuckles and fingerIdx > 0 then
+	        offset = 1
+	    
+	    -- segmentIdx从1开始，所以要减1，再加上offset
+	    local actualLink = linkStart + (segmentIdx - 1) + offset
+	    
+	    try
+	    (
+	        local node = biped.getNode rolBsBipedTools.m_workingBipRoot fingerIndex link:actualLink
+	        return node
+	    )
+	    catch()
+	    
+	    return undefined
+	)					 
+
+	-- ★★★ 选择整根手指 ★★★
+	fn SelectWholeFinger side fingerIdx =
+	(
+	    if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) then return false
+	    
+	    local fingerIndex = if side == "L" then 3 else 4
+	    local isKnuckles = detectKnucklesMode()
+	    local linkStart = GetFingerLinkStart fingerIdx isKnuckles side
+	    local maxSegs = GetFingerSegmentCount fingerIdx isKnuckles side
+	    
+	    local nodesToSelect = #()
+	    
+	    if isKnuckles and fingerIdx > 0 then
+	    (
+	        -- Knuckles模式下，非拇指手指：跳过掌骨节（linkStart位置）
+	        -- 从 linkStart+1 开始选择后3节
+	        for i = 1 to 3 do
+	        (
+	            local actualLink = linkStart + i
+	            try
+	            (
+	                local node = biped.getNode rolBsBipedTools.m_workingBipRoot fingerIndex link:actualLink
+	                if node != undefined and not isDeleted node then
+	                    append nodesToSelect node
+	            )
+	            catch()
+	        )
+	    )
+	    else
+	    (
+	        -- 拇指或普通模式：选择全部节
+	        for i = 0 to (maxSegs - 1) do
+	        (
+	            try
+	            (
+	                local node = biped.getNode rolBsBipedTools.m_workingBipRoot fingerIndex link:(linkStart + i)
+	                if node != undefined and not isDeleted node then
+	                    append nodesToSelect node
+	            )
+	            catch()
+	        )
+	    )
+	    
+	    if nodesToSelect.count > 0 then
+	    (
+	        select nodesToSelect
+	        return true
+	    )
+	    
+	    return false
+	)
+
+
+	-- 选择所有手指
+	fn SelectAllFingers side =
+	( 
+	    if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) then return false
+	    
+	    local fingerIndex = if side == "L" then 3 else 4
+	    local allFingerBones = #()
+	    local maxLinks = 25
+	    
+	    try ( maxLinks = biped.maxNumLinks rolBsBipedTools.m_workingBipRoot ) catch()
+	    
+	    for linkIdx = 1 to maxLinks do
+	    ( 
+	        try
 	        ( 
-	          -- 其他手指：包含掌骨节 + 3指节
-	          local f0 = getNodeByName (bipedName + " " + handSide + " " + fingerName) 
-	          local f1 = getNodeByName (bipedName + " " + handSide + " " + fingerName + "1") 
-	          local f2 = getNodeByName (bipedName + " " + handSide + " " + fingerName + "2") 
-	          local f3 = getNodeByName (bipedName + " " + handSide + " " + fingerName + "3") 
-	          if f0 != undefined and not isDeleted f0 then append allFingerBones f0
-	          if f1 != undefined and not isDeleted f1 then append allFingerBones f1
-	          if f2 != undefined and not isDeleted f2 then append allFingerBones f2
-	          if f3 != undefined and not isDeleted f3 then append allFingerBones f3
+	            local bone = biped.getNode rolBsBipedTools.m_workingBipRoot fingerIndex link:linkIdx
+	            if bone != undefined and not isDeleted bone then
+	                append allFingerBones bone
 	        )
-	      ) 
-	      else
-	      ( 
-	        -- 标准模式：3节
-	        local f0 = getNodeByName (bipedName + " " + handSide + " " + fingerName) 
-	        local f1 = getNodeByName (bipedName + " " + handSide + " " + fingerName + "1") 
-	        local f2 = getNodeByName (bipedName + " " + handSide + " " + fingerName + "2") 
-	        if f0 != undefined and not isDeleted f0 then append allFingerBones f0
-	        if f1 != undefined and not isDeleted f1 then append allFingerBones f1
-	        if f2 != undefined and not isDeleted f2 then append allFingerBones f2
-	      ) 
-	    ) 
+	        catch()
+	    )
 	    
 	    if allFingerBones.count > 0 then
 	    ( 
-	      select allFingerBones
-	      return true
+	        select allFingerBones
+	        return true
 	    ) 
 	    return false
 	)
-	-- 新增截断 →
 
-	-- ← 新增：智能获取手指骨骼（根据模式自动映射）
-	fn GetFingerBone side fingerIdx segmentIdx =
+	-- ★★★ 获取手指数组（用于Spread/Bend）★★★
+	-- 跳过拇指，Knuckles模式下跳过掌骨节
+	fn GetFingerArray side isKnuckles =
 	( 
-	    local bipedName = getBipedName() 
-	    if bipedName == "" then return undefined
+	    if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) then return #()
 	    
-	    local isKnuckles = detectKnucklesMode() 
-	    local handSide = side
-	    local boneName = ""
+	    local fingerIndex = if side == "L" then 3 else 4
+	    local fingers = #()
 	    
-	    -- 拇指特殊处理
-	    if fingerIdx == 0 then
+	    -- 只收集Finger1-4（跳过拇指Finger0）
+	    for fingerIdx = 1 to 4 do
 	    ( 
-	      if segmentIdx == 1 then boneName = bipedName + " " + handSide + " Finger0"
-	      else if segmentIdx == 2 then boneName = bipedName + " " + handSide + " Finger01"
-	      else if segmentIdx == 3 then boneName = bipedName + " " + handSide + " Finger02"
-	    ) 
-	    else
-	    ( 
-	      local fingerName = "Finger" + fingerIdx as string
-	      
-	      if isKnuckles then
-	      ( 
-	        -- Knuckles模式：跳过掌骨节，直接映射到Finger11/12/13
-	        if segmentIdx == 1 then boneName = bipedName + " " + handSide + " " + fingerName + "1"
-	        else if segmentIdx == 2 then boneName = bipedName + " " + handSide + " " + fingerName + "2"
-	        else if segmentIdx == 3 then boneName = bipedName + " " + handSide + " " + fingerName + "3"
-	      ) 
-	      else
-	      ( 
-	        -- 标准模式：先检查是否有根节点Finger1/2/3/4
-	        local rootNode = getNodeByName (bipedName + " " + handSide + " " + fingerName)
+	        local linkStart = GetFingerLinkStart fingerIdx isKnuckles side
+	        local fingerNodes = #()
 	        
-	        if rootNode != undefined and not isDeleted rootNode then
+	        if isKnuckles then
+	        (
+	            -- Knuckles模式：跳过掌骨节（linkStart位置）
+	            -- 从 linkStart+1 开始收集后3节
+	            for i = 1 to 3 do
+	            ( 
+	                local actualLink = linkStart + i
+	                try
+	                ( 
+	                    local node = biped.getNode rolBsBipedTools.m_workingBipRoot fingerIndex link:actualLink
+	                    if node != undefined and not isDeleted node then
+	                        append fingerNodes node
+	                )
+	                catch()
+	            )
+	        )
+	        else
+	        (
+	            -- 普通模式：收集全部节
+	            local segsPerFinger = DetectFingerSegments side
+	            for i = 0 to (segsPerFinger - 1) do
+	            ( 
+	                try
+	                ( 
+	                    local node = biped.getNode rolBsBipedTools.m_workingBipRoot fingerIndex link:(linkStart + i)
+	                    if node != undefined and not isDeleted node then
+	                        append fingerNodes node
+	                )
+	                catch()
+	            )
+	        )
+	        
+	        if fingerNodes.count > 0 then
+	            append fingers fingerNodes
+	    )
+	    
+	    return fingers
+	)
+
+
+	-- 更新按钮启用/禁用状态
+	fn UpdateFingerButtonStates =
+	( 
+	    if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) then
+	    ( 
+	        local allBtns = #(
+	            select_rthumb1_btn, select_rthumb2_btn, select_rthumb3_btn,
+	            select_rfing11_btn, select_rfing12_btn, select_rfing13_btn,
+	            select_rfing21_btn, select_rfing22_btn, select_rfing23_btn,
+	            select_rfing31_btn, select_rfing32_btn, select_rfing33_btn,
+	            select_rfing41_btn, select_rfing42_btn, select_rfing43_btn,
+	            select_lthumb1_btn, select_lthumb2_btn, select_lthumb3_btn,
+	            select_lfing11_btn, select_lfing12_btn, select_lfing13_btn,
+	            select_lfing21_btn, select_lfing22_btn, select_lfing23_btn,
+	            select_lfing31_btn, select_lfing32_btn, select_lfing33_btn,
+	            select_lfing41_btn, select_lfing42_btn, select_lfing43_btn,
+	            btnFingerLineR1, btnFingerLineR2, btnFingerLineR3, btnFingerLineR4, btnFingerLineR5,
+	            btnFingerLineL1, btnFingerLineL2, btnFingerLineL3, btnFingerLineL4, btnFingerLineL5
+	        )
+	        for btn in allBtns do
 	        ( 
-	          -- 有根节点（3节模式）：Finger1 → Finger11 → Finger12
-	          if segmentIdx == 1 then boneName = bipedName + " " + handSide + " " + fingerName
-	          else if segmentIdx == 2 then boneName = bipedName + " " + handSide + " " + fingerName + "1"
-	          else if segmentIdx == 3 then boneName = bipedName + " " + handSide + " " + fingerName + "2"
-	        ) 
+	            btn.enabled = false
+	            btn.highlightColor = (color 128 128 128)
+	        )
+	        return()
+	    )
+	    
+	    local isKnuckles = detectKnucklesMode()
+	    local rFingerInfo = DetectFingerStructure "R"
+	    local lFingerInfo = DetectFingerStructure "L"
+	    
+	    local rBtnMap = #(
+	        #(select_rthumb1_btn, select_rthumb2_btn, select_rthumb3_btn),
+	        #(select_rfing11_btn, select_rfing12_btn, select_rfing13_btn),
+	        #(select_rfing21_btn, select_rfing22_btn, select_rfing23_btn),
+	        #(select_rfing31_btn, select_rfing32_btn, select_rfing33_btn),
+	        #(select_rfing41_btn, select_rfing42_btn, select_rfing43_btn)
+	    )
+	    
+	    local lBtnMap = #(
+	        #(select_lthumb1_btn, select_lthumb2_btn, select_lthumb3_btn),
+	        #(select_lfing11_btn, select_lfing12_btn, select_lfing13_btn),
+	        #(select_lfing21_btn, select_lfing22_btn, select_lfing23_btn),
+	        #(select_lfing31_btn, select_lfing32_btn, select_lfing33_btn),
+	        #(select_lfing41_btn, select_lfing42_btn, select_lfing43_btn)
+	    )
+	    
+	    local rLineBtns = #(btnFingerLineR1, btnFingerLineR2, btnFingerLineR3, btnFingerLineR4, btnFingerLineR5)
+	    local lLineBtns = #(btnFingerLineL1, btnFingerLineL2, btnFingerLineL3, btnFingerLineL4, btnFingerLineL5)
+	    
+	    -- 更新右手按钮
+	    for i = 1 to 5 do
+	    ( 
+	        local fingerIdx = i - 1
+	        local segCount = rFingerInfo[i][2]
+	        local btns = rBtnMap[i]
+	        
+	        -- Knuckles模式下4节非拇指手指，UI只显示3节
+	        local displayCount = segCount
+	        if isKnuckles and segCount == 4 and fingerIdx > 0 then
+	            displayCount = 3
+	        
+	        for j = 1 to 3 do
+	        ( 
+	            if j <= displayCount then
+	            ( 
+	                btns[j].enabled = true
+	                btns[j].highlightColor = if fingerIdx == 0 then
+	                    rolBsBipedTools.mcRightThumb
+	                else
+	                    rolBsBipedTools.mcRightFinger
+	            )
+	            else
+	            ( 
+	                btns[j].enabled = false
+	                btns[j].highlightColor = (color 128 128 128)
+	            )
+	        )
+	        
+	        if segCount > 0 then
+	        ( 
+	            rLineBtns[i].enabled = true
+	            rLineBtns[i].highlightColor = if fingerIdx == 0 then
+	                (rolBsBipedTools.mcRightThumb * 0.7)
+	            else
+	                (rolBsBipedTools.mcRightFinger * 0.7)
+	        )
 	        else
 	        ( 
-	          -- 无根节点（2节模式）：直接从Finger11开始
-	          if segmentIdx == 1 then boneName = bipedName + " " + handSide + " " + fingerName + "1"
-	          else if segmentIdx == 2 then boneName = bipedName + " " + handSide + " " + fingerName + "2"
-	          else if segmentIdx == 3 then return undefined  -- 第3节不存在
-	        ) 
-	      ) 
-	    ) 
+	            rLineBtns[i].enabled = false
+	            rLineBtns[i].highlightColor = (color 128 128 128)
+	        )
+	    )
 	    
-	    if boneName != "" then
+	    -- 更新左手按钮
+	    for i = 1 to 5 do
 	    ( 
-	      local bone = getNodeByName boneName
-	      if bone != undefined and not isDeleted bone then
-	        return bone
-	    ) 
-	    
-	    return undefined
-	) 
-
-
+	        local fingerIdx = i - 1
+	        local segCount = lFingerInfo[i][2]
+	        local btns = lBtnMap[i]
+	        
+	        local displayCount = segCount
+	        if isKnuckles and segCount == 4 and fingerIdx > 0 then
+	            displayCount = 3
+	        
+	        for j = 1 to 3 do
+	        ( 
+	            if j <= displayCount then
+	            ( 
+	                btns[j].enabled = true
+	                btns[j].highlightColor = if fingerIdx == 0 then
+	                    rolBsBipedTools.mcLeftThumb
+	                else
+	                    rolBsBipedTools.mcLeftFinger
+	            )
+	            else
+	            ( 
+	                btns[j].enabled = false
+	                btns[j].highlightColor = (color 128 128 128)
+	            )
+	        )
+	        
+	        if segCount > 0 then
+	        ( 
+	            lLineBtns[i].enabled = true
+	            lLineBtns[i].highlightColor = if fingerIdx == 0 then
+	                (rolBsBipedTools.mcLeftThumb * 0.7)
+	            else
+	                (rolBsBipedTools.mcLeftFinger * 0.7)
+	        )
+	        else
+	        ( 
+	            lLineBtns[i].enabled = false
+	            lLineBtns[i].highlightColor = (color 128 128 128)
+	        )
+	    )
+	)
 
 
 	on select_lhand1_btn changed state do (
 		select_lhand1_btn.state = true
 		if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) do ( rolBsBipedTools.SetButtonState false; return ())
 		if keyboard.controlPressed and keyboard.altpressed do (
-			-- Shift 를 누르면 똑바로 펴는 기능
 			rolBsBipedTools.Straighten rolBsBipedTools.m_LHand ((eulerangles -90 0 0) as quat)
 			return ()
 		)
@@ -1123,7 +1139,6 @@ rollout rolBSFingers "BsBipedTools_Fingers" width:300 height:230
 		select_rhand1_btn.state = true
 		if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) do ( rolBsBipedTools.SetButtonState false; return ())
 		if keyboard.controlPressed and keyboard.altpressed do (
-			-- Shift 를 누르면 똑바로 펴는 기능
 			rolBsBipedTools.Straighten rolBsBipedTools.m_RHand ((eulerangles 90 0 0) as quat)
 			return ()
 		)
@@ -1625,73 +1640,71 @@ rollout rolBSFingers "BsBipedTools_Fingers" width:300 height:230
 	    try(rolBsBipedTools.CompSelect selBackup #(bone)) catch (select bone)
   	)
 
--- 右手单根手指选择按钮
-  on btnFingerLineR1 changed state do ( 
-    btnFingerLineR1.state = true
-    SelectWholeFinger "R" 0
-  ) 
-  
-  on btnFingerLineR2 changed state do ( 
-    btnFingerLineR2.state = true
-    SelectWholeFinger "R" 1
-  ) 
-  
-  on btnFingerLineR3 changed state do ( 
-    btnFingerLineR3.state = true
-    SelectWholeFinger "R" 2
-  ) 
-  
-  on btnFingerLineR4 changed state do ( 
-    btnFingerLineR4.state = true
-    SelectWholeFinger "R" 3
-  ) 
-  
-  on btnFingerLineR5 changed state do ( 
-    btnFingerLineR5.state = true
-    SelectWholeFinger "R" 4
-  ) 
-
+	-- 右手单根手指选择按钮
+	on btnFingerLineR1 changed state do ( 
+	    btnFingerLineR1.state = true
+	    SelectWholeFinger "R" 0
+	) 
 	
-  -- 左手单根手指选择按钮
-  on btnFingerLineL1 changed state do ( 
-    btnFingerLineL1.state = true
-    SelectWholeFinger "L" 0
-  ) 
-  
-  on btnFingerLineL2 changed state do ( 
-    btnFingerLineL2.state = true
-    SelectWholeFinger "L" 1
-  ) 
-  
-  on btnFingerLineL3 changed state do ( 
-    btnFingerLineL3.state = true
-    SelectWholeFinger "L" 2
-  ) 
-  
-  on btnFingerLineL4 changed state do ( 
-    btnFingerLineL4.state = true
-    SelectWholeFinger "L" 3
-  ) 
-  
-  on btnFingerLineL5 changed state do ( 
-    btnFingerLineL5.state = true
-    SelectWholeFinger "L" 4
-  )
+	on btnFingerLineR2 changed state do ( 
+	    btnFingerLineR2.state = true
+	    SelectWholeFinger "R" 1
+	) 
+	
+	on btnFingerLineR3 changed state do ( 
+	    btnFingerLineR3.state = true
+	    SelectWholeFinger "R" 2
+	) 
+	
+	on btnFingerLineR4 changed state do ( 
+	    btnFingerLineR4.state = true
+	    SelectWholeFinger "R" 3
+	) 
+	
+	on btnFingerLineR5 changed state do ( 
+	    btnFingerLineR5.state = true
+	    SelectWholeFinger "R" 4
+	) 
+
+	-- 左手单根手指选择按钮
+	on btnFingerLineL1 changed state do ( 
+	    btnFingerLineL1.state = true
+	    SelectWholeFinger "L" 0
+	) 
+	
+	on btnFingerLineL2 changed state do ( 
+	    btnFingerLineL2.state = true
+	    SelectWholeFinger "L" 1
+	) 
+	
+	on btnFingerLineL3 changed state do ( 
+	    btnFingerLineL3.state = true
+	    SelectWholeFinger "L" 2
+	) 
+	
+	on btnFingerLineL4 changed state do ( 
+	    btnFingerLineL4.state = true
+	    SelectWholeFinger "L" 3
+	) 
+	
+	on btnFingerLineL5 changed state do ( 
+	    btnFingerLineL5.state = true
+	    SelectWholeFinger "L" 4
+	)
 	
 	-- 线性插值函数
 	function LerpFloat a b bias = (
 		return a + (b - a) * bias
 	)
 
-	function MakeClosest quat1 quat2 = -- modifies quat2 and also returns quat2
+	function MakeClosest quat1 quat2 = 
 	(
 		local dot = quat1.x*quat2.x + quat1.y*quat2.y + quat1.z*quat2.z+quat1.w*quat2.w
 		if (dot < 0.0) do (quat2.x = -quat2.x; quat2.y = -quat2.y;quat2.z = -quat2.z; quat2.w = -quat2.w)
 		quat2
 	)
 	
-	-- 手指张开函数 (完全参考BipedAssist实现，6个参数)
-	-- 手指张开函数（优化版 - 只对根指节操作）
+	-- 手指张开函数
 	function SpreadFingers fingersArr minAngle maxAngle spread bendStart bendEnd isKnucklesMode side =
 	( 
 	    if fingersArr.count < 1 do return() 
@@ -1724,8 +1737,7 @@ rollout rolBSFingers "BsBipedTools_Fingers" width:300 height:230
 	    ) 
 	)
 		
-	-- 手指弯曲函数 (完全参考BipedAssist实现)
-	-- 手指弯曲函数（优化版 - 对所有指节操作）
+	-- 手指弯曲函数
 	function BendFingers fingersArr bendStart bendEnd spread isKnucklesMode side = ( 
 	    if fingersArr.count < 1 do return() 
 	    
@@ -1789,108 +1801,6 @@ rollout rolBSFingers "BsBipedTools_Fingers" width:300 height:230
 	    ) 
 	)
 
-	  function GetFingerArray side isKnucklesMode =
-	  ( 
-	    local fingerArr = #() 
-	    local bipedName = getBipedName() 
-	    
-	    if bipedName == "" or bipedName == undefined then return fingerArr
-	    
-	    local handSide = side
-	    
-	    if isKnucklesMode then
-	    ( 
-	      -- Knuckles模式：跳过掌骨节(Finger1/2/3/4)，从Finger11/21/31/41开始
-	      
-	      -- Finger1 (食指) - 3节
-	      local finger1 = #() 
-	      local f1_1 = getNodeByName (bipedName + " " + handSide + " Finger11") 
-	      local f1_2 = getNodeByName (bipedName + " " + handSide + " Finger12") 
-	      local f1_3 = getNodeByName (bipedName + " " + handSide + " Finger13") 
-	      if f1_1 != undefined and not isDeleted f1_1 then append finger1 f1_1
-	      if f1_2 != undefined and not isDeleted f1_2 then append finger1 f1_2
-	      if f1_3 != undefined and not isDeleted f1_3 then append finger1 f1_3
-	      if finger1.count > 0 do append fingerArr finger1
-	      
-	      -- Finger2 (中指) - 3节
-	      local finger2 = #() 
-	      local f2_1 = getNodeByName (bipedName + " " + handSide + " Finger21") 
-	      local f2_2 = getNodeByName (bipedName + " " + handSide + " Finger22") 
-	      local f2_3 = getNodeByName (bipedName + " " + handSide + " Finger23") 
-	      if f2_1 != undefined and not isDeleted f2_1 then append finger2 f2_1
-	      if f2_2 != undefined and not isDeleted f2_2 then append finger2 f2_2
-	      if f2_3 != undefined and not isDeleted f2_3 then append finger2 f2_3
-	      if finger2.count > 0 do append fingerArr finger2
-	      
-	      -- Finger3 (无名指) - 3节
-	      local finger3 = #() 
-	      local f3_1 = getNodeByName (bipedName + " " + handSide + " Finger31") 
-	      local f3_2 = getNodeByName (bipedName + " " + handSide + " Finger32") 
-	      local f3_3 = getNodeByName (bipedName + " " + handSide + " Finger33") 
-	      if f3_1 != undefined and not isDeleted f3_1 then append finger3 f3_1
-	      if f3_2 != undefined and not isDeleted f3_2 then append finger3 f3_2
-	      if f3_3 != undefined and not isDeleted f3_3 then append finger3 f3_3
-	      if finger3.count > 0 do append fingerArr finger3
-	      
-	      -- Finger4 (小指) - 3节
-	      local finger4 = #() 
-	      local f4_1 = getNodeByName (bipedName + " " + handSide + " Finger41") 
-	      local f4_2 = getNodeByName (bipedName + " " + handSide + " Finger42") 
-	      local f4_3 = getNodeByName (bipedName + " " + handSide + " Finger43") 
-	      if f4_1 != undefined and not isDeleted f4_1 then append finger4 f4_1
-	      if f4_2 != undefined and not isDeleted f4_2 then append finger4 f4_2
-	      if f4_3 != undefined and not isDeleted f4_3 then append finger4 f4_3
-	      if finger4.count > 0 do append fingerArr finger4
-	      
-	    ) 
-	    else
-	    ( 
-	      -- 标准3节模式：Finger1-4各3节（包含Finger1/2/3/4根节），跳过拇指
-	      
-	      -- Finger1 (食指) - 3节
-	      local finger1 = #() 
-	      local f1_0 = getNodeByName (bipedName + " " + handSide + " Finger1") 
-	      local f1_1 = getNodeByName (bipedName + " " + handSide + " Finger11") 
-	      local f1_2 = getNodeByName (bipedName + " " + handSide + " Finger12") 
-	      if f1_0 != undefined and not isDeleted f1_0 then append finger1 f1_0
-	      if f1_1 != undefined and not isDeleted f1_1 then append finger1 f1_1
-	      if f1_2 != undefined and not isDeleted f1_2 then append finger1 f1_2
-	      if finger1.count > 0 do append fingerArr finger1
-	      
-	      -- Finger2 (中指) - 3节
-	      local finger2 = #() 
-	      local f2_0 = getNodeByName (bipedName + " " + handSide + " Finger2") 
-	      local f2_1 = getNodeByName (bipedName + " " + handSide + " Finger21") 
-	      local f2_2 = getNodeByName (bipedName + " " + handSide + " Finger22") 
-	      if f2_0 != undefined and not isDeleted f2_0 then append finger2 f2_0
-	      if f2_1 != undefined and not isDeleted f2_1 then append finger2 f2_1
-	      if f2_2 != undefined and not isDeleted f2_2 then append finger2 f2_2
-	      if finger2.count > 0 do append fingerArr finger2
-	      
-	      -- Finger3 (无名指) - 3节
-	      local finger3 = #() 
-	      local f3_0 = getNodeByName (bipedName + " " + handSide + " Finger3") 
-	      local f3_1 = getNodeByName (bipedName + " " + handSide + " Finger31") 
-	      local f3_2 = getNodeByName (bipedName + " " + handSide + " Finger32") 
-	      if f3_0 != undefined and not isDeleted f3_0 then append finger3 f3_0
-	      if f3_1 != undefined and not isDeleted f3_1 then append finger3 f3_1
-	      if f3_2 != undefined and not isDeleted f3_2 then append finger3 f3_2
-	      if finger3.count > 0 do append fingerArr finger3
-	      
-	      -- Finger4 (小指) - 3节
-	      local finger4 = #() 
-	      local f4_0 = getNodeByName (bipedName + " " + handSide + " Finger4") 
-	      local f4_1 = getNodeByName (bipedName + " " + handSide + " Finger41") 
-	      local f4_2 = getNodeByName (bipedName + " " + handSide + " Finger42") 
-	      if f4_0 != undefined and not isDeleted f4_0 then append finger4 f4_0
-	      if f4_1 != undefined and not isDeleted f4_1 then append finger4 f4_1
-	      if f4_2 != undefined and not isDeleted f4_2 then append finger4 f4_2
-	      if finger4.count > 0 do append fingerArr finger4
-	      
-	    ) 
-	    
-	    return fingerArr
-	  )
 	-- 右手张开事件
 	on uiRSpread rightClick do (
 		uiRSpread.value = 0
@@ -1899,7 +1809,7 @@ rollout rolBSFingers "BsBipedTools_Fingers" width:300 height:230
 	
 	on uiRSpread changed var do ( 
 	    if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) do return() 
-	    rIsKnuckles = detectKnucklesMode()  -- 动态检测
+	    rIsKnuckles = detectKnucklesMode()
 	    local m_RFingers = GetFingerArray "R" rIsKnuckles
 	    if m_RFingers.count > 0 then ( 
 	      BendFingers m_RFingers uiRBendStart.value uiRBendEnd.value var rIsKnuckles "R"
@@ -1916,7 +1826,7 @@ rollout rolBSFingers "BsBipedTools_Fingers" width:300 height:230
 	
 	on uiLSpread changed var do ( 
 	    if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) do return() 
-	    lIsKnuckles = detectKnucklesMode()  -- 动态检测
+	    lIsKnuckles = detectKnucklesMode()
 	    local m_LFingers = GetFingerArray "L" lIsKnuckles
 	    if m_LFingers.count > 0 then ( 
 	      BendFingers m_LFingers uiLBendStart.value uiLBendEnd.value var lIsKnuckles "L"
@@ -1925,10 +1835,10 @@ rollout rolBSFingers "BsBipedTools_Fingers" width:300 height:230
 	    ) 
 	) 
 	
-	-- 右手弯曲事件 (食指、中指、无名指)
+	-- 右手弯曲事件
 	on uiRBendEnd changed var do ( 
 	    if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) do return() 
-	    rIsKnuckles = detectKnucklesMode()  -- 动态检测
+	    rIsKnuckles = detectKnucklesMode()
 	    local m_RFingers = GetFingerArray "R" rIsKnuckles
 	    if m_RFingers.count > 0 then ( 
 	      BendFingers m_RFingers uiRBendStart.value uiRBendEnd.value uiRSpread.value rIsKnuckles "R"
@@ -1937,10 +1847,9 @@ rollout rolBSFingers "BsBipedTools_Fingers" width:300 height:230
 	    ) 
 	) 
 
-	
 	on uiRBendStart changed var do ( 
 	    if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) do return() 
-	    rIsKnuckles = detectKnucklesMode()  -- 动态检测
+	    rIsKnuckles = detectKnucklesMode()
 	    local m_RFingers = GetFingerArray "R" rIsKnuckles
 	    if m_RFingers.count > 0 then ( 
 	      BendFingers m_RFingers uiRBendStart.value uiRBendEnd.value uiRSpread.value rIsKnuckles "R"
@@ -1949,10 +1858,10 @@ rollout rolBSFingers "BsBipedTools_Fingers" width:300 height:230
 	    ) 
 	) 
 	
-	-- 左手弯曲事件 (中指、无名指、小指)
+	-- 左手弯曲事件
 	on uiLBendStart changed var do ( 
 	    if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) do return() 
-	    lIsKnuckles = detectKnucklesMode()  -- 动态检测
+	    lIsKnuckles = detectKnucklesMode()
 	    local m_LFingers = GetFingerArray "L" lIsKnuckles
 	    if m_LFingers.count > 0 then ( 
 	      BendFingers m_LFingers uiLBendStart.value uiLBendEnd.value uiLSpread.value lIsKnuckles "L"
@@ -1963,7 +1872,7 @@ rollout rolBSFingers "BsBipedTools_Fingers" width:300 height:230
 	
 	on uiLBendEnd changed var do ( 
 	    if (rolBsBipedTools.m_workingBipRoot == undefined or (isDeleted rolBsBipedTools.m_workingBipRoot)) do return() 
-	    lIsKnuckles = detectKnucklesMode()  -- 动态检测
+	    lIsKnuckles = detectKnucklesMode()
 	    local m_LFingers = GetFingerArray "L" lIsKnuckles
 	    if m_LFingers.count > 0 then ( 
 	      BendFingers m_LFingers uiLBendStart.value uiLBendEnd.value uiLSpread.value lIsKnuckles "L"
