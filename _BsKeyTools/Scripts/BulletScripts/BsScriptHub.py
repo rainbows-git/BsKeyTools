@@ -85,7 +85,7 @@ def url_quote(s):
         # Python 3: 直接处理
         return _quote(str(s), safe='')
 
-VERSION = "1.2"
+VERSION = "1.3"
 
 # GitHub 仓库配置
 GITHUB_OWNER = "AnimatorBullet"
@@ -295,15 +295,415 @@ class NetworkWorker(QThread):
             self.finished.emit(None, "[异常] %s" % str(e))
 
 
+class AboutDialog(QDialog):
+    """关于对话框"""
+    
+    def __init__(self, parent, version, branch):
+        super(AboutDialog, self).__init__(parent)
+        self.setWindowTitle("关于 BsScriptHub")
+        self.setModal(True)
+        
+        # 设置固定大小，防止拖动缩放
+        self.setFixedSize(420, 340)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        
+        # 创建主widget
+        main_widget = QWidget(self)
+        main_widget.setGeometry(0, 0, 420, 340)
+        
+        # Logo/标题 - 使用绝对定位
+        title_label = QLabel("BsScriptHub", main_widget)
+        title_label.setStyleSheet("font-size: 26px; font-weight: bold; color: #7ecbff;")
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setGeometry(0, 35, 420, 35)
+        
+        # 版本信息
+        branch_text = " (开发版)" if branch == "dev" else ""
+        version_label = QLabel("版本 %s%s" % (version, branch_text), main_widget)
+        version_label.setStyleSheet("font-size: 13px; color: #e0e0e0;")
+        version_label.setAlignment(Qt.AlignCenter)
+        version_label.setGeometry(0, 78, 420, 20)
+        
+        # 描述1
+        desc_label = QLabel("远程脚本集合平台", main_widget)
+        desc_label.setStyleSheet("font-size: 12px; color: #bbb;")
+        desc_label.setAlignment(Qt.AlignCenter)
+        desc_label.setGeometry(0, 115, 420, 18)
+        
+        # 描述2
+        desc2_label = QLabel("一个用于管理和运行3ds Max脚本的工具，\n支持从GitHub远程获取和更新脚本。", main_widget)
+        desc2_label.setStyleSheet("font-size: 11px; color: #999;")
+        desc2_label.setAlignment(Qt.AlignCenter)
+        desc2_label.setWordWrap(True)
+        desc2_label.setGeometry(0, 140, 420, 36)
+        
+        # 作者信息
+        author_label = QLabel("作者：Bullet.S", main_widget)
+        author_label.setStyleSheet("font-size: 11px; color: #888;")
+        author_label.setAlignment(Qt.AlignCenter)
+        author_label.setGeometry(0, 192, 420, 16)
+        
+        # 兼容性信息
+        compat_label = QLabel("兼容：3ds Max 2020+", main_widget)
+        compat_label.setStyleSheet("font-size: 11px; color: #888;")
+        compat_label.setAlignment(Qt.AlignCenter)
+        compat_label.setGeometry(0, 212, 420, 16)
+        
+        # GitHub链接按钮
+        github_btn = QPushButton("访问 GitHub 仓库", main_widget)
+        github_btn.setCursor(Qt.PointingHandCursor)
+        github_btn.setStyleSheet("""
+            QPushButton {
+                background: #404040;
+                border: 1px solid #555;
+                border-radius: 4px;
+                color: #7ecbff;
+                font-size: 12px;
+            }
+            QPushButton:hover { 
+                background: #505050; 
+                border-color: #7ecbff;
+            }
+        """)
+        github_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(GITHUB_PAGE_BASE)))
+        github_btn.setGeometry(32, 250, 356, 34)
+        
+        # 关闭按钮
+        close_btn = QPushButton("关闭", main_widget)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background: #2d7d46;
+                border: 1px solid #3a9956;
+                border-radius: 4px;
+                color: #fff;
+                font-weight: bold;
+            }
+            QPushButton:hover { background: #3a9956; }
+        """)
+        close_btn.clicked.connect(self.accept)
+        close_btn.setGeometry(32, 292, 356, 34)
+
+
+class HiddenItemsSettingsDialog(QDialog):
+    """隐藏项设置对话框"""
+    
+    def __init__(self, parent, hidden_categories, hidden_scripts, all_categories, all_scripts):
+        super(HiddenItemsSettingsDialog, self).__init__(parent)
+        self.setWindowTitle("隐藏项管理")
+        self.setModal(True)
+        self.resize(650, 500)
+        
+        self.hidden_categories = list(hidden_categories)
+        self.hidden_scripts = [s.copy() for s in hidden_scripts]
+        self.all_categories = all_categories
+        self.all_scripts = all_scripts
+        
+        self._init_ui()
+    
+    def _init_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+        
+        # 标题说明
+        title_label = QLabel("管理已隐藏的分类和脚本")
+        title_label.setStyleSheet("font-size: 14px; font-weight: bold; color: #7ecbff; padding-bottom: 4px;")
+        layout.addWidget(title_label)
+        
+        info_label = QLabel("提示：选中项目后点击\"恢复\"按钮取消隐藏，或双击项目快速恢复")
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("color: #999; font-size: 11px; padding-bottom: 8px;")
+        layout.addWidget(info_label)
+        
+        # 水平分割：左侧分类，右侧脚本
+        splitter = QSplitter(Qt.Horizontal)
+        
+        # === 左侧：分类 ===
+        cat_widget = QWidget()
+        cat_layout = QVBoxLayout(cat_widget)
+        cat_layout.setContentsMargins(0, 0, 0, 0)
+        cat_layout.setSpacing(8)
+        
+        cat_header = QHBoxLayout()
+        self.cat_label = QLabel("已隐藏的分类 (%d)" % len(self.hidden_categories))
+        self.cat_label.setStyleSheet("font-weight: bold; color: #e0e0e0; font-size: 12px;")
+        cat_header.addWidget(self.cat_label)
+        cat_header.addStretch()
+        
+        self.restore_all_cat_btn = QPushButton("全部恢复")
+        self.restore_all_cat_btn.setFixedHeight(24)
+        self.restore_all_cat_btn.setStyleSheet("""
+            QPushButton {
+                background: #404040;
+                border: 1px solid #555;
+                border-radius: 3px;
+                padding: 2px 12px;
+                color: #ddd;
+                font-size: 11px;
+            }
+            QPushButton:hover { background: #505050; border-color: #7ecbff; }
+            QPushButton:disabled { background: #2a2a2a; color: #555; }
+        """)
+        self.restore_all_cat_btn.clicked.connect(self._restore_all_categories)
+        cat_header.addWidget(self.restore_all_cat_btn)
+        
+        cat_layout.addLayout(cat_header)
+        
+        self.category_list = QListWidget()
+        self.category_list.setStyleSheet("""
+            QListWidget {
+                background: #1e1e1e;
+                border: 1px solid #404040;
+                border-radius: 4px;
+                padding: 4px;
+                font-size: 11px;
+            }
+            QListWidget::item {
+                padding: 8px 10px;
+                border-radius: 3px;
+                color: #e0e0e0;
+            }
+            QListWidget::item:hover {
+                background: #2a2a2a;
+            }
+            QListWidget::item:selected {
+                background: #357abd;
+                color: #fff;
+            }
+        """)
+        self.category_list.itemDoubleClicked.connect(self._on_category_double_click)
+        cat_layout.addWidget(self.category_list)
+        
+        self.restore_cat_btn = QPushButton("恢复选中")
+        self.restore_cat_btn.setFixedHeight(28)
+        self.restore_cat_btn.clicked.connect(self._restore_selected_categories)
+        cat_layout.addWidget(self.restore_cat_btn)
+        
+        splitter.addWidget(cat_widget)
+        
+        # === 右侧：脚本 ===
+        script_widget = QWidget()
+        script_layout = QVBoxLayout(script_widget)
+        script_layout.setContentsMargins(0, 0, 0, 0)
+        script_layout.setSpacing(8)
+        
+        script_header = QHBoxLayout()
+        self.script_label = QLabel("已隐藏的脚本 (%d)" % len(self.hidden_scripts))
+        self.script_label.setStyleSheet("font-weight: bold; color: #e0e0e0; font-size: 12px;")
+        script_header.addWidget(self.script_label)
+        script_header.addStretch()
+        
+        self.restore_all_script_btn = QPushButton("全部恢复")
+        self.restore_all_script_btn.setFixedHeight(24)
+        self.restore_all_script_btn.setStyleSheet("""
+            QPushButton {
+                background: #404040;
+                border: 1px solid #555;
+                border-radius: 3px;
+                padding: 2px 12px;
+                color: #ddd;
+                font-size: 11px;
+            }
+            QPushButton:hover { background: #505050; border-color: #7ecbff; }
+            QPushButton:disabled { background: #2a2a2a; color: #555; }
+        """)
+        self.restore_all_script_btn.clicked.connect(self._restore_all_scripts)
+        script_header.addWidget(self.restore_all_script_btn)
+        
+        script_layout.addLayout(script_header)
+        
+        self.script_list = QListWidget()
+        self.script_list.setStyleSheet("""
+            QListWidget {
+                background: #1e1e1e;
+                border: 1px solid #404040;
+                border-radius: 4px;
+                padding: 4px;
+                font-size: 11px;
+            }
+            QListWidget::item {
+                padding: 8px 10px;
+                border-radius: 3px;
+                color: #e0e0e0;
+            }
+            QListWidget::item:hover {
+                background: #2a2a2a;
+            }
+            QListWidget::item:selected {
+                background: #357abd;
+                color: #fff;
+            }
+        """)
+        self.script_list.itemDoubleClicked.connect(self._on_script_double_click)
+        script_layout.addWidget(self.script_list)
+        
+        self.restore_script_btn = QPushButton("恢复选中")
+        self.restore_script_btn.setFixedHeight(28)
+        self.restore_script_btn.clicked.connect(self._restore_selected_scripts)
+        script_layout.addWidget(self.restore_script_btn)
+        
+        splitter.addWidget(script_widget)
+        
+        # 设置分割比例
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 2)
+        
+        layout.addWidget(splitter)
+        
+        # 底部按钮
+        bottom_layout = QHBoxLayout()
+        bottom_layout.addStretch()
+        
+        self.close_btn = QPushButton("关闭")
+        self.close_btn.setFixedSize(80, 32)
+        self.close_btn.setStyleSheet("""
+            QPushButton {
+                background: #2d7d46;
+                border: 1px solid #3a9956;
+                border-radius: 3px;
+                color: #fff;
+                font-weight: bold;
+            }
+            QPushButton:hover { background: #3a9956; }
+        """)
+        self.close_btn.clicked.connect(self.accept)
+        bottom_layout.addWidget(self.close_btn)
+        
+        layout.addLayout(bottom_layout)
+        
+        # 填充列表
+        self._populate_lists()
+    
+    def _on_category_double_click(self, item):
+        """双击分类快速恢复"""
+        cat_key = item.data(Qt.UserRole)
+        if cat_key in self.hidden_categories:
+            self.hidden_categories.remove(cat_key)
+            self._populate_lists()
+    
+    def _on_script_double_click(self, item):
+        """双击脚本快速恢复"""
+        script_info = item.data(Qt.UserRole)
+        for i, s in enumerate(self.hidden_scripts):
+            if (s.get("name") == script_info.get("name") and 
+                s.get("category") == script_info.get("category")):
+                self.hidden_scripts.pop(i)
+                break
+        self._populate_lists()
+    
+    def _populate_lists(self):
+        """填充列表"""
+        self.category_list.clear()
+        self.script_list.clear()
+        
+        # 填充分类列表
+        for cat_key in self.hidden_categories:
+            display_name = self._get_category_display_name(cat_key)
+            item = QListWidgetItem(display_name)
+            item.setData(Qt.UserRole, cat_key)
+            self.category_list.addItem(item)
+        
+        # 填充脚本列表
+        for script_info in self.hidden_scripts:
+            name = script_info.get("name", "未知")
+            cat = script_info.get("category", "")
+            cat_display = self._get_category_display_name(cat)
+            display_text = "%s  [%s]" % (name, cat_display)
+            item = QListWidgetItem(display_text)
+            item.setData(Qt.UserRole, script_info)
+            self.script_list.addItem(item)
+        
+        # 更新计数标签
+        self.cat_label.setText("已隐藏的分类 (%d)" % len(self.hidden_categories))
+        self.script_label.setText("已隐藏的脚本 (%d)" % len(self.hidden_scripts))
+        
+        # 更新按钮状态
+        self.restore_all_cat_btn.setEnabled(len(self.hidden_categories) > 0)
+        self.restore_all_script_btn.setEnabled(len(self.hidden_scripts) > 0)
+    
+    def _get_category_display_name(self, cat_key):
+        """获取分类显示名称"""
+        import re
+        match = re.match(r'^\d+[_\-\s]*(.+)$', cat_key)
+        return match.group(1) if match else cat_key
+    
+    def _restore_selected_categories(self):
+        """恢复选中的分类"""
+        selected_items = self.category_list.selectedItems()
+        if not selected_items:
+            return
+        
+        for item in selected_items:
+            cat_key = item.data(Qt.UserRole)
+            if cat_key in self.hidden_categories:
+                self.hidden_categories.remove(cat_key)
+        
+        self._populate_lists()
+    
+    def _restore_all_categories(self):
+        """恢复所有分类"""
+        if not self.hidden_categories:
+            return
+        
+        reply = QMessageBox.question(
+            self, "确认",
+            "确定要恢复所有已隐藏的分类吗？",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.hidden_categories = []
+            self._populate_lists()
+    
+    def _restore_selected_scripts(self):
+        """恢复选中的脚本"""
+        selected_items = self.script_list.selectedItems()
+        if not selected_items:
+            return
+        
+        for item in selected_items:
+            script_info = item.data(Qt.UserRole)
+            # 查找并移除
+            for i, s in enumerate(self.hidden_scripts):
+                if (s.get("name") == script_info.get("name") and 
+                    s.get("category") == script_info.get("category")):
+                    self.hidden_scripts.pop(i)
+                    break
+        
+        self._populate_lists()
+    
+    def _restore_all_scripts(self):
+        """恢复所有脚本"""
+        if not self.hidden_scripts:
+            return
+        
+        reply = QMessageBox.question(
+            self, "确认",
+            "确定要恢复所有已隐藏的脚本吗？",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.hidden_scripts = []
+            self._populate_lists()
+    
+    def get_result(self):
+        """获取结果"""
+        return self.hidden_categories, self.hidden_scripts
+
+
 class CollapsibleCategory(QWidget):
     """可折叠的分类组件"""
     toggled = Signal(str, bool)  # (category_key, expanded)
+    category_context_menu = Signal(str, object)  # (category_key, pos)
     
     def __init__(self, title, category_key="", parent=None):
         super(CollapsibleCategory, self).__init__(parent)
         self.expanded = True
         self.scripts = []
         self.category_key = category_key or title  # 用于保存状态的 key
+        self.is_hidden = False  # 隐藏状态
+        self.show_hidden_mode = False  # 是否在显示隐藏模式下
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -328,6 +728,8 @@ class CollapsibleCategory(QWidget):
             }
         """ % _scaled_font(11))
         self.header.clicked.connect(self._toggle)
+        self.header.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.header.customContextMenuRequested.connect(self._show_context_menu)
         layout.addWidget(self.header)
         
         # 内容区域
@@ -343,8 +745,13 @@ class CollapsibleCategory(QWidget):
         self.expanded = not self.expanded
         self.content.setVisible(self.expanded)
         arrow = "🔽  " if self.expanded else "▶  "
-        self.header.setText(arrow + self.title)
+        prefix = "🚫  " if (self.is_hidden and self.show_hidden_mode) else ""
+        self.header.setText(arrow + prefix + self.title)
         self.toggled.emit(self.category_key, self.expanded)
+    
+    def _show_context_menu(self, pos):
+        """显示分类右键菜单"""
+        self.category_context_menu.emit(self.category_key, self.header.mapToGlobal(pos))
     
     def set_expanded(self, expanded):
         """设置展开状态（不触发信号）"""
@@ -352,7 +759,56 @@ class CollapsibleCategory(QWidget):
             self.expanded = expanded
             self.content.setVisible(expanded)
             arrow = "🔽  " if expanded else "▶  "
-            self.header.setText(arrow + self.title)
+            prefix = "🚫  " if (self.is_hidden and self.show_hidden_mode) else ""
+            self.header.setText(arrow + prefix + self.title)
+    
+    def set_hidden_state(self, is_hidden, show_hidden_mode):
+        """设置隐藏状态"""
+        self.is_hidden = is_hidden
+        self.show_hidden_mode = show_hidden_mode
+        
+        # 更新标题显示
+        arrow = "🔽  " if self.expanded else "▶  "
+        prefix = "🚫  " if (is_hidden and show_hidden_mode) else ""
+        self.header.setText(arrow + prefix + self.title)
+        
+        # 更新样式
+        if is_hidden and show_hidden_mode:
+            # 置灰样式
+            self.header.setStyleSheet("""
+                QPushButton {
+                    background: #252525;
+                    border: none;
+                    border-radius: 3px;
+                    padding: 4px 8px;
+                    text-align: left;
+                    font-size: %dpx;
+                    font-weight: bold;
+                    color: #555;
+                }
+                QPushButton:hover {
+                    background: #2a2a2a;
+                    color: #666;
+                }
+            """ % _scaled_font(11))
+        else:
+            # 正常样式
+            self.header.setStyleSheet("""
+                QPushButton {
+                    background: #353535;
+                    border: none;
+                    border-radius: 3px;
+                    padding: 4px 8px;
+                    text-align: left;
+                    font-size: %dpx;
+                    font-weight: bold;
+                    color: #8ac;
+                }
+                QPushButton:hover {
+                    background: #404040;
+                    color: #7ecbff;
+                }
+            """ % _scaled_font(11))
     
     def add_script_item(self, script_btn):
         self.content_layout.addWidget(script_btn)
@@ -383,6 +839,8 @@ class ScriptButton(QPushButton):
         self.script_data = script_data
         self.local_versions = local_versions or {}
         self.version_status = self._check_version_status()
+        self.is_hidden = False  # 隐藏状态
+        self.show_hidden_mode = False  # 是否在显示隐藏模式下
         
         self._update_display()
         self.setToolTip(script_data.get("description", ""))
@@ -416,20 +874,31 @@ class ScriptButton(QPushButton):
         """更新显示"""
         name = self.script_data.get("name", "未知脚本")
         
-        # 根据状态添加标记 (已下载为普通样式，未下载/有更新为特殊样式)
-        # emoji后加空格确保在Max 2022正确显示
-        if self.version_status == self.STATUS_UPDATE_AVAILABLE:
-            display_name = "🔺  " + name  # 有更新 - 特殊样式
-            border_color = "#ff9800"  # 橙色边框
+        # 根据隐藏状态调整显示
+        if self.is_hidden and self.show_hidden_mode:
+            # 隐藏项在显示模式下：置灰+标记
+            display_name = "🚫  " + name
+            border_color = "#333333"
+            bg_color = "#1a1a1a"
+            text_color = "#555555"
+        elif self.version_status == self.STATUS_UPDATE_AVAILABLE:
+            # 有更新
+            display_name = "🔺  " + name
+            border_color = "#ff9800"
             bg_color = "#3d3520"
+            text_color = "#e0e0e0"
         elif self.version_status == self.STATUS_NOT_INSTALLED:
-            display_name = "○  " + name  # 未安装 - 特殊样式
-            border_color = "#666666"  # 灰色边框
+            # 未安装
+            display_name = "○  " + name
+            border_color = "#666666"
             bg_color = "#2a2a2a"
+            text_color = "#e0e0e0"
         else:
-            display_name = name  # 已是最新 - 普通样式(无标记)
+            # 已是最新
+            display_name = name
             border_color = "#404040"
             bg_color = "#333333"
+            text_color = "#e0e0e0"
         
         self.setText(display_name)
         self.setStyleSheet("""
@@ -439,7 +908,7 @@ class ScriptButton(QPushButton):
                 border-radius: 4px;
                 padding: 8px 12px;
                 text-align: left;
-                color: #e0e0e0;
+                color: %s;
             }
             QPushButton:hover {
                 background: #3a3a3a;
@@ -448,7 +917,13 @@ class ScriptButton(QPushButton):
             QPushButton:pressed {
                 background: #2a2a2a;
             }
-        """ % (bg_color, border_color))
+        """ % (bg_color, border_color, text_color))
+    
+    def set_hidden_state(self, is_hidden, show_hidden_mode):
+        """设置隐藏状态"""
+        self.is_hidden = is_hidden
+        self.show_hidden_mode = show_hidden_mode
+        self._update_display()
     
     def update_local_versions(self, local_versions):
         """更新本地版本信息并刷新显示"""
@@ -498,6 +973,7 @@ class BsScriptHub(QDialog):
         self.category_states = self.config.get("category_states", {})  # 分类展开状态
         self.last_selected_script = self.config.get("last_selected_script", None)  # 上次选中的脚本
         self.saved_window_pos = self.config.get("window_pos", None)  # 窗口位置
+        self.show_hidden = self.config.get("show_hidden", False)  # 是否显示隐藏项
         
         # 设置窗口标志：Dialog 类型跟随Max
         self.setWindowFlags(Qt.Dialog | Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
@@ -514,6 +990,9 @@ class BsScriptHub(QDialog):
 
         # 根据保存的状态设置窗口大小和面板显示
         self._apply_saved_state()
+        
+        # 更新显示隐藏按钮状态
+        self._update_show_hidden_btn()
 
         # 延迟加载脚本列表
         QTimer.singleShot(100, self._load_scripts_index)
@@ -521,7 +1000,13 @@ class BsScriptHub(QDialog):
     def _update_window_title(self):
         """更新窗口标题"""
         branch_tag = " [DEV]" if self.current_branch == "dev" else ""
-        self.setWindowTitle("BsScriptHub_v%s%s" % (VERSION, branch_tag))
+        # 根据详情面板状态调整标题长度
+        if hasattr(self, 'detail_visible') and not self.detail_visible:
+            # 收起时使用短标题
+            self.setWindowTitle("BsScriptHub%s" % branch_tag)
+        else:
+            # 展开时使用完整标题
+            self.setWindowTitle("BsScriptHub_v%s%s" % (VERSION, branch_tag))
 
     def _fs(self, base_size):
         """Get DPI-scaled font size string for inline styles"""
@@ -552,6 +1037,15 @@ class BsScriptHub(QDialog):
                     self.config = json.load(f)
             except:
                 self.config = {}
+        
+        # 确保隐藏项配置存在
+        if "hidden_items" not in self.config:
+            self.config["hidden_items"] = {
+                "categories": [],
+                "scripts": []
+            }
+        if "show_hidden" not in self.config:
+            self.config["show_hidden"] = False
     
     def _save_config(self):
         """保存窗口配置"""
@@ -615,6 +1109,155 @@ class BsScriptHub(QDialog):
                 return True
         
         return False
+    
+    # region 隐藏项管理
+    def _is_category_hidden(self, category_key):
+        """检查分类是否被隐藏"""
+        hidden_cats = self.config.get("hidden_items", {}).get("categories", [])
+        return category_key in hidden_cats
+    
+    def _is_script_hidden(self, script_name, category_key):
+        """检查脚本是否被隐藏"""
+        hidden_scripts = self.config.get("hidden_items", {}).get("scripts", [])
+        for item in hidden_scripts:
+            if item.get("name") == script_name and item.get("category") == category_key:
+                return True
+        return False
+    
+    def _hide_category(self, category_key):
+        """隐藏分类"""
+        hidden_cats = self.config.get("hidden_items", {}).get("categories", [])
+        if category_key not in hidden_cats:
+            hidden_cats.append(category_key)
+            self.config["hidden_items"]["categories"] = hidden_cats
+            self._save_config()
+            self._refresh_visibility()
+    
+    def _hide_script(self, script_name, category_key):
+        """隐藏脚本"""
+        hidden_scripts = self.config.get("hidden_items", {}).get("scripts", [])
+        # 检查是否已存在
+        for item in hidden_scripts:
+            if item.get("name") == script_name and item.get("category") == category_key:
+                return  # 已隐藏
+        
+        hidden_scripts.append({"name": script_name, "category": category_key})
+        self.config["hidden_items"]["scripts"] = hidden_scripts
+        self._save_config()
+        self._refresh_visibility()
+    
+    def _unhide_category(self, category_key):
+        """取消隐藏分类"""
+        hidden_cats = self.config.get("hidden_items", {}).get("categories", [])
+        if category_key in hidden_cats:
+            hidden_cats.remove(category_key)
+            self.config["hidden_items"]["categories"] = hidden_cats
+            self._save_config()
+            self._refresh_visibility()
+    
+    def _unhide_script(self, script_name, category_key):
+        """取消隐藏脚本"""
+        hidden_scripts = self.config.get("hidden_items", {}).get("scripts", [])
+        # 查找并移除
+        for i, item in enumerate(hidden_scripts):
+            if item.get("name") == script_name and item.get("category") == category_key:
+                hidden_scripts.pop(i)
+                self.config["hidden_items"]["scripts"] = hidden_scripts
+                self._save_config()
+                self._refresh_visibility()
+                break
+    
+    def _toggle_show_hidden(self):
+        """切换显示/隐藏已隐藏项"""
+        self.show_hidden = not self.show_hidden
+        self.config["show_hidden"] = self.show_hidden
+        self._save_config()
+        self._update_show_hidden_btn()
+        self._refresh_visibility()
+    
+    def _update_show_hidden_btn(self):
+        """更新显示隐藏菜单项状态"""
+        if self.show_hidden:
+            self.show_hidden_action.setChecked(True)
+            self.show_hidden_action.setText("隐藏已隐藏项")
+        else:
+            self.show_hidden_action.setChecked(False)
+            self.show_hidden_action.setText("显示已隐藏项")
+    
+    def _refresh_visibility(self):
+        """刷新所有项目的可见性"""
+        search_text = self.search_box.text()
+        
+        for cat_key, cat_widget in self.categories.items():
+            # 检查分类是否隐藏
+            cat_is_hidden = self._is_category_hidden(cat_key)
+            
+            # 分类可见性逻辑
+            if search_text:
+                # 搜索模式：忽略隐藏，显示所有匹配项
+                cat_widget.set_hidden_state(False, False)
+            elif cat_is_hidden and not self.show_hidden:
+                # 分类被隐藏且未开启显示隐藏项
+                cat_widget.setVisible(False)
+                continue
+            else:
+                # 显示分类（正常或置灰）
+                cat_widget.set_hidden_state(cat_is_hidden, self.show_hidden)
+                cat_widget.setVisible(True)
+            
+            # 处理分类下的脚本
+            visible_count = 0
+            for btn in cat_widget.scripts:
+                script_data = btn.script_data
+                script_name = script_data.get("name", "")
+                script_is_hidden = self._is_script_hidden(script_name, cat_key)
+                
+                # 脚本可见性逻辑
+                if search_text:
+                    # 搜索模式：忽略隐藏，只看是否匹配
+                    matches = btn.matches_filter(search_text)
+                    btn.set_hidden_state(False, False)
+                    btn.setVisible(matches)
+                    if matches:
+                        visible_count += 1
+                elif script_is_hidden and not self.show_hidden:
+                    # 脚本被隐藏且未开启显示隐藏项
+                    btn.setVisible(False)
+                else:
+                    # 显示脚本（正常或置灰）
+                    btn.set_hidden_state(script_is_hidden, self.show_hidden)
+                    btn.setVisible(True)
+                    visible_count += 1
+            
+            # 搜索模式下：如果分类下没有匹配项，隐藏分类
+            if search_text and visible_count == 0:
+                cat_widget.setVisible(False)
+    
+    def _open_hidden_settings(self):
+        """打开隐藏项设置对话框"""
+        hidden_cats = self.config.get("hidden_items", {}).get("categories", [])
+        hidden_scripts = self.config.get("hidden_items", {}).get("scripts", [])
+        
+        dialog = HiddenItemsSettingsDialog(
+            self, 
+            hidden_cats, 
+            hidden_scripts,
+            self.categories_data,
+            self.scripts_data
+        )
+        
+        if dialog.exec_() == QDialog.Accepted:
+            # 获取修改后的结果
+            new_cats, new_scripts = dialog.get_result()
+            
+            # 保存到配置
+            self.config["hidden_items"]["categories"] = new_cats
+            self.config["hidden_items"]["scripts"] = new_scripts
+            self._save_config()
+            
+            # 刷新显示
+            self._refresh_visibility()
+    # endregion
     
     def _save_window_position(self):
         """保存窗口位置"""
@@ -696,39 +1339,103 @@ class BsScriptHub(QDialog):
         self.branch_btn.clicked.connect(self._toggle_branch)
         title_row.addWidget(self.branch_btn)
         
+        # 菜单按钮
+        self.menu_btn = QToolButton()
+        self.menu_btn.setText("☰")
+        self.menu_btn.setObjectName("iconBtn")
+        self.menu_btn.setToolTip("菜单")
+        self.menu_btn.setFixedSize(28, 24)
+        self.menu_btn.setPopupMode(QToolButton.InstantPopup)
+        self.menu_btn.setStyleSheet("""
+            QToolButton { 
+                background: #404040; 
+                border: 1px solid #555; 
+                border-radius: 3px;
+                font-size: %s;
+                font-weight: bold;
+                color: #ddd;
+            }
+            QToolButton:hover { 
+                background: #505050; 
+                border-color: #7ecbff;
+            }
+        """ % self._fs(14))
+        
+        # 创建菜单
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu { 
+                background: #2b2b2b; 
+                border: 1px solid #404040; 
+                border-radius: 4px; 
+                padding: 4px; 
+            }
+            QMenu::item { 
+                padding: 8px 24px 8px 8px; 
+                border-radius: 3px;
+                color: #e0e0e0;
+            }
+            QMenu::item:selected { 
+                background: #357abd; 
+            }
+            QMenu::separator { 
+                height: 1px; 
+                background: #404040; 
+                margin: 4px 8px; 
+            }
+        """)
+        
+        # 显示/隐藏已隐藏项
+        self.show_hidden_action = menu.addAction("显示已隐藏项")
+        self.show_hidden_action.setCheckable(True)
+        self.show_hidden_action.triggered.connect(self._toggle_show_hidden)
+        
+        # 管理隐藏设置
+        action_settings = menu.addAction("管理隐藏设置...")
+        action_settings.triggered.connect(self._open_hidden_settings)
+        
+        menu.addSeparator()
+        
+        # 刷新列表
+        action_refresh = menu.addAction("刷新列表")
+        action_refresh.triggered.connect(self._refresh_all)
+        
+        # 强制刷新
+        action_force_refresh = menu.addAction("强制刷新 (清空缓存)")
+        action_force_refresh.triggered.connect(lambda: self._refresh_all(force_remote=True))
+        
+        # 批量更新
+        action_update_all = menu.addAction("批量下载/更新所有脚本")
+        action_update_all.triggered.connect(self._update_all_scripts)
+        
+        menu.addSeparator()
+        
+        # 打开缓存目录
+        action_cache = menu.addAction("打开缓存目录")
+        action_cache.triggered.connect(self._open_cache_folder)
+        
+        # 清空缓存
+        action_clear = menu.addAction("清空本地缓存...")
+        action_clear.triggered.connect(self._clear_cache)
+        
+        menu.addSeparator()
+        
+        # 帮助
+        action_help = menu.addAction("帮助教程")
+        action_help.triggered.connect(self._open_help)
+        
+        # 关于
+        action_about = menu.addAction("关于...")
+        action_about.triggered.connect(self._show_about)
+        
+        self.menu_btn.setMenu(menu)
+        title_row.addWidget(self.menu_btn)
+        
         title_row.addStretch()
-        
-        # 帮助按钮
-        self.help_btn = QToolButton()
-        self.help_btn.setText("?")
-        self.help_btn.setObjectName("iconBtn")
-        self.help_btn.setToolTip("帮助 - 打开视频教程")
-        self.help_btn.setFixedSize(28, 24)
-        self.help_btn.clicked.connect(self._open_help)
-        title_row.addWidget(self.help_btn)
-        
-        self.refresh_btn = QToolButton()
-        self.refresh_btn.setText("↻")  # 刷新符号
-        self.refresh_btn.setObjectName("iconBtn")
-        self.refresh_btn.setToolTip("刷新脚本列表\n右键: 强制刷新/清空缓存")
-        self.refresh_btn.setFixedSize(28, 24)
-        self.refresh_btn.clicked.connect(self._refresh_all)
-        self.refresh_btn.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.refresh_btn.customContextMenuRequested.connect(self._show_refresh_menu)
-        title_row.addWidget(self.refresh_btn)
-        
-        # 批量更新按钮
-        self.update_all_btn = QToolButton()
-        self.update_all_btn.setText("↓")  # 下载符号
-        self.update_all_btn.setObjectName("iconBtn")
-        self.update_all_btn.setToolTip("批量下载/更新所有脚本")
-        self.update_all_btn.setFixedSize(28, 24)
-        self.update_all_btn.clicked.connect(self._update_all_scripts)
-        title_row.addWidget(self.update_all_btn)
         
         # 详情面板切换按钮
         self.toggle_detail_btn = QToolButton()
-        self.toggle_detail_btn.setText("◀")
+        self.toggle_detail_btn.setText("▶")
         self.toggle_detail_btn.setObjectName("toggleBtn")
         self.toggle_detail_btn.setToolTip("显示/隐藏详情面板")
         self.toggle_detail_btn.setFixedSize(28, 24)
@@ -937,6 +1644,9 @@ class BsScriptHub(QDialog):
             self.setFixedWidth(WINDOW_WIDTH_COLLAPSED)
             self.resize(WINDOW_WIDTH_COLLAPSED, self.height())
         
+        # 更新标题以适应窗口宽度
+        self._update_window_title()
+        
         # 保存状态
         self.config["detail_visible"] = self.detail_visible
         self._save_config()
@@ -958,6 +1668,11 @@ class BsScriptHub(QDialog):
     def _open_help(self):
         """打开帮助页面"""
         QDesktopServices.openUrl(QUrl(HELP_URL))
+    
+    def _show_about(self):
+        """显示关于对话框"""
+        dialog = AboutDialog(self, VERSION, self.current_branch)
+        dialog.exec_() if hasattr(dialog, 'exec_') else dialog.exec()
     
     def _toggle_branch(self):
         """切换分支"""
@@ -1061,6 +1776,7 @@ class BsScriptHub(QDialog):
             
             self._build_categories()
             self._refresh_script_buttons()  # 确保按钮状态正确
+            self._refresh_visibility()  # 应用隐藏设置
             total_scripts = sum(len(scripts) for scripts in self.categories_data.values())
             self.status_label.setText("已加载 %d 个脚本，%d 个分类" % (total_scripts, len(self.categories_data)))
             
@@ -1078,6 +1794,7 @@ class BsScriptHub(QDialog):
                 self.categories_data = index_data.get("categories", {})
                 self._build_categories()
                 self._refresh_script_buttons()  # 确保按钮状态正确
+                self._refresh_visibility()  # 应用隐藏设置
                 total_scripts = sum(len(scripts) if isinstance(scripts, list) else 0 
                                    for scripts in self.categories_data.values())
                 self.status_label.setText("已从缓存加载 %d 个脚本 (离线模式)" % total_scripts)
@@ -1179,6 +1896,7 @@ class BsScriptHub(QDialog):
             display_name = self._get_display_category_name(cat_name)
             cat_widget = CollapsibleCategory(display_name, category_key=cat_name)
             cat_widget.toggled.connect(self._on_category_toggled)
+            cat_widget.category_context_menu.connect(self._show_category_context_menu)
             
             # 恢复保存的展开状态
             if cat_name in self.category_states:
@@ -1241,25 +1959,49 @@ class BsScriptHub(QDialog):
         self.config["category_states"] = self.category_states
         self._save_config()
     
+    def _show_category_context_menu(self, category_key, pos):
+        """显示分类右键菜单"""
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu { background: #2b2b2b; border: 1px solid #404040; border-radius: 4px; padding: 4px; }
+            QMenu::item { padding: 6px 12px; border-radius: 3px; }
+            QMenu::item:selected { background: #357abd; }
+        """)
+        
+        # 隐藏/取消隐藏分类
+        if self._is_category_hidden(category_key):
+            action_hide = menu.addAction("👁  取消隐藏此分类")
+            action_hide.triggered.connect(lambda: self._unhide_category(category_key))
+        else:
+            action_hide = menu.addAction("🚫  隐藏此分类")
+            action_hide.triggered.connect(lambda: self._hide_category(category_key))
+        
+        # exec_ 在 PySide6 中已弃用，使用 getattr 兼容
+        getattr(menu, 'exec', menu.exec_)(pos)
+    
     def _filter_scripts(self, text):
-        """过滤脚本"""
-        for cat_widget in self.categories.values():
-            visible_count = 0
-            for btn in cat_widget.scripts:
-                matches = btn.matches_filter(text)
-                btn.setVisible(matches)
-                if matches:
-                    visible_count += 1
-            
-            # 如果有匹配的脚本，展开分类
-            if text:
+        """过滤脚本（搜索时显示所有匹配项，忽略隐藏设置）"""
+        if text:
+            # 搜索模式：忽略隐藏，显示所有匹配项
+            for cat_widget in self.categories.values():
+                visible_count = 0
+                for btn in cat_widget.scripts:
+                    matches = btn.matches_filter(text)
+                    btn.set_hidden_state(False, False)  # 搜索时不显示隐藏标记
+                    btn.setVisible(matches)
+                    if matches:
+                        visible_count += 1
+                
+                # 如果分类下有匹配的脚本，展开并显示分类
                 if visible_count > 0:
+                    cat_widget.set_hidden_state(False, False)  # 搜索时不显示隐藏标记
                     cat_widget.expand()
                     cat_widget.setVisible(True)
                 else:
                     cat_widget.setVisible(False)
-            else:
-                cat_widget.setVisible(True)
+        else:
+            # 非搜索模式：使用隐藏设置
+            self._refresh_visibility()
     
     def _expand_all(self):
         """展开所有分类"""
@@ -1301,6 +2043,9 @@ class BsScriptHub(QDialog):
         # 先保存基本信息，用于后续操作
         self._pending_script_data = script_data
         
+        script_name = script_data.get("name", "")
+        category = script_data.get("category", "")
+        
         menu = QMenu(self)
         menu.setStyleSheet("""
             QMenu { background: #2b2b2b; border: 1px solid #404040; border-radius: 4px; padding: 4px; }
@@ -1313,13 +2058,22 @@ class BsScriptHub(QDialog):
         action_run.triggered.connect(lambda: self._on_script_run(script_data))
         
         # 下载/更新
-        script_name = script_data.get("name", "")
         local_ver = self.local_versions.get(script_name, {}).get("version", "")
         if local_ver:
             action_download = menu.addAction("📥  更新脚本")
         else:
             action_download = menu.addAction("📥  下载脚本")
         action_download.triggered.connect(lambda: self._context_download_script(script_data))
+        
+        menu.addSeparator()
+        
+        # 隐藏/取消隐藏
+        if self._is_script_hidden(script_name, category):
+            action_hide = menu.addAction("👁  取消隐藏")
+            action_hide.triggered.connect(lambda: self._unhide_script(script_name, category))
+        else:
+            action_hide = menu.addAction("🚫  隐藏此脚本")
+            action_hide.triggered.connect(lambda: self._hide_script(script_name, category))
         
         menu.addSeparator()
         
@@ -1522,33 +2276,6 @@ class BsScriptHub(QDialog):
         
         self._load_local_versions()  # 重新加载本地版本记录
         self._load_scripts_index()   # 重新加载脚本列表
-    
-    def _show_refresh_menu(self, pos):
-        """显示刷新按钮右键菜单"""
-        menu = QMenu(self)
-        menu.setStyleSheet("""
-            QMenu { background: #2b2b2b; border: 1px solid #404040; border-radius: 4px; padding: 4px; }
-            QMenu::item { padding: 6px 12px; border-radius: 3px; }
-            QMenu::item:selected { background: #357abd; }
-        """)
-        
-        action_refresh = menu.addAction("🔄  刷新列表")
-        action_refresh.triggered.connect(self._refresh_all)
-        
-        action_force_refresh = menu.addAction("⚡  强制刷新 (清空详情缓存)")
-        action_force_refresh.setToolTip("清空脚本详情缓存，强制从远程重新获取最新版本信息")
-        action_force_refresh.triggered.connect(lambda: self._refresh_all(force_remote=True))
-        
-        menu.addSeparator()
-        
-        action_clear = menu.addAction("🗑  清空本地缓存")
-        action_clear.triggered.connect(self._clear_cache)
-        
-        action_open = menu.addAction("📁  打开缓存目录")
-        action_open.triggered.connect(self._open_cache_folder)
-        
-        # exec_ 在 PySide6 中已弃用，使用 getattr 兼容
-        getattr(menu, 'exec', menu.exec_)(self.refresh_btn.mapToGlobal(pos))
     
     def _refresh_script_buttons(self):
         """刷新脚本按钮状态"""

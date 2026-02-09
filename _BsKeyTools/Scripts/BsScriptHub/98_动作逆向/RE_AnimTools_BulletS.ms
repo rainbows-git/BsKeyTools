@@ -11,9 +11,9 @@ global noesis_path
 global output_path
 global arrMotFilesLoaded
 
-rollout rolREAnimTools "RE_AnimTools_v1.5_Bullet.S" height:105 width:305
+rollout rolREAnimTools "RE_AnimTools_v1.6_Bullet.S" height:105 width:305
 (
-	local arrGamesName = #("MHWsOBT-怪物猎人荒野公测版","MHWs-怪物猎人荒野正式版","MHRise-怪物猎人崛起","MHRSunbreak-怪物猎人崛起曙光")
+	local arrGamesName = #("MHWsOBT-怪物猎人荒野公测版","MHWs-怪物猎人荒野正式版","MHRise-怪物猎人崛起","MHRSunbreak-怪物猎人崛起曙光","MHS3-怪物猎人物语3体验版","Pragmata-体验版")
 
 	label lblSelectGameMode "请选择目标游戏：" pos:[12,8] width:80
 	dropdownlist ddlCurGames "" items:arrGamesName pos:[100,5] width:190
@@ -27,6 +27,8 @@ rollout rolREAnimTools "RE_AnimTools_v1.5_Bullet.S" height:105 width:305
 			"2":motExt = ".992"
 			"3":motExt = ".484"
 			"4":motExt = ".528"
+			"5":motExt = ".1004"
+			"6":motExt = ".1057"
 			default:motExt = ".959"
 		)
 		motExt
