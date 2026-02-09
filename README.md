@@ -13,9 +13,11 @@
 [![GitHub last commit (main)](https://img.shields.io/github/last-commit/AniBullet/BsKeyTools/main?style=flat-square&logo=github&label=main)](https://github.com/AniBullet/BsKeyTools/tree/main)
 [![Latest Release](https://img.shields.io/badge/BsKeyTools-LatestReleases-success?style=flat-square&logo=github)](https://github.com/AniBullet/BsKeyTools/releases/latest)
 
-[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/AniBullet/BsKeyTools)
+[![Download BsKeyTools](https://img.shields.io/badge/全功能插件-BsKeyTools.exe-orange?style=flat-square&logo=windows)](https://github.com/AniBullet/BsKeyTools/blob/main/_BsKeyTools/_BsKeyTools.exe)
+[![Download BsCleanVirus](https://img.shields.io/badge/仅含杀毒-BsCleanVirus.exe-blue?style=flat-square&logo=windows)](https://github.com/AniBullet/BsKeyTools/blob/main/_BsKeyTools/BsCleanVirus_Standalone.exe)
 
-> **🌏 English Speakers:** Full Documentation available on DeepWiki
+
+ **🌏 English Speakers:** Full Documentation available on [![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/AniBullet/BsKeyTools)
 
 </div>
 
@@ -227,9 +229,9 @@ BsKeyTools 是一个面向 **Autodesk 3ds Max** 的综合性动画工具集，
 
 感谢以下个人和项目的代码贡献与灵感支持：
 
-### 个人贡献者
+### 个人贡献者（不完全统计）
 
-**Crazyone** · **包包** · **东见云** · **祥子** · **SiChun Yuan** · **动画大白** · **哈库呐玛哒哒** · **z.ven 子墨** · **一方狂三** · **夏奈**
+**Crazyone** · **包包** · **东见云** · **祥子** · **SiChun Yuan** · **动画大白** · **哈库呐玛哒哒** · **z.ven 子墨** · **一方狂三** · **夏奈** · **虹**
 
 ### 开源项目
 - [FFmpeg](https://github.com/FFmpeg/FFmpeg) - 多媒体处理框架
