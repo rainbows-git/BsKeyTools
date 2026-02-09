@@ -3,15 +3,18 @@
  * @Author: Bullet.S
  * @Date: 2022-02-13 15:37:02
  * @LastEditors: Bullet.S
- * @LastEditTime: 2022-11-05 19:32:47
+ * @LastEditTime: 2026-02-09 18:30:48
  * @Email: animator.bullet@foxmail.com
  */
 global rolBsCleanVirus
 global rolBsVirusScanLog
+global rolBatchCleanVirus
 global iniStartupBsCleanVirus = 0
 global iniVerboseLevel = 1
+global batchStopFlag = false
 try(destroyDialog rolBsCleanVirus)catch()
 try(destroyDialog rolBsVirusScanLog) catch()
+try(destroyDialog rolBatchCleanVirus) catch()
 
 Global BulletConfig = execute ("@\"" + (getDir #maxData) + "\\BulletConfig.ini\"")  --配置文件路径
 
@@ -25,6 +28,7 @@ rollout rolBsVirusScanLog "病毒扫描日志  【杀毒不会破坏源文件，
 	dotNetControl lbxLog "system.windows.forms.listView" height: 400 width: 850 offset: [-13, -5]
 	
 	button btnClearAllLog "清除所有日志" align: #left height: 25 width: 100 pos: [10, -50]
+	button btnExportLog "导出日志" align: #left height: 25 width: 80 pos: [115, -50]
 		
 	struct signature_log (
 		fn getLogFile = (
@@ -131,6 +135,7 @@ rollout rolBsVirusScanLog "病毒扫描日志  【杀毒不会破坏源文件，
 		v = 36
 		size = GetDialogSize rolBsVirusScanLog
 		btnClearAllLog.pos.y = size.y - v
+		btnExportLog.pos.y = size.y - v
 	)
 	
 	fn getDotNetColor r g b = (DotNetClass "System.Drawing.Color").fromargb r g b 
@@ -246,6 +251,175 @@ rollout rolBsVirusScanLog "病毒扫描日志  【杀毒不会破坏源文件，
 		buildThreatList()
 	)
 	
+	fn exportLogToTxt filepath = (
+		try (
+			local slog = signature_log()
+			local logs = slog.getAll()
+			
+			-- 尝试使用.NET File.WriteAllLines（更简单可靠）
+			try (
+				local fileClass = dotNetClass "System.IO.File"
+				local encodingClass = dotNetClass "System.Text.Encoding"
+				
+				-- 构建所有行
+				local lines = #()
+				append lines ("病毒扫描日志 - 导出时间：" + (slog.getTime()))
+				append lines "====================================="
+				
+				for i = 1 to logs.count do (
+					local log = logs[i]
+					append lines ("#" + (i as string) + "  日期：" + log[1] + "  类型：" + log[2])
+					append lines ("    信息：" + log[3])
+					append lines ""
+				)
+				
+				append lines "====================================="
+				append lines ("共 " + (logs.count as string) + " 条记录")
+				
+				-- 转换为.NET数组
+				local dotNetLines = dotNetObject "System.Collections.ArrayList"
+				for line in lines do dotNetLines.Add line
+				
+				-- 使用UTF8编码写入文件
+				fileClass.WriteAllLines filepath (dotNetLines.ToArray (dotNetClass "System.String")) encodingClass.UTF8
+				
+				return true
+			) catch (
+				-- Fallback: 使用传统MaxScript方式
+				local f = createFile filepath
+				if f != undefined do (
+					format "病毒扫描日志 - 导出时间：%\n" (slog.getTime()) to:f
+					format "=====================================\n" to:f
+					
+					for i = 1 to logs.count do (
+						local log = logs[i]
+						format "#%  日期：%  类型：%\n" i log[1] log[2] to:f
+						format "    信息：%\n\n" log[3] to:f
+					)
+					
+					format "=====================================\n" to:f
+					format "共 % 条记录\n" logs.count to:f
+					
+					close f
+					return true
+				)
+				return false
+			)
+		) catch (
+			return false
+		)
+	)
+	
+	fn exportLogToCsv filepath = (
+		try (
+			local slog = signature_log()
+			local logs = slog.getAll()
+			
+			-- 尝试使用.NET File.WriteAllLines
+			try (
+				local fileClass = dotNetClass "System.IO.File"
+				local encodingClass = dotNetClass "System.Text.Encoding"
+				
+				-- 构建所有行
+				local lines = #()
+				append lines "序号,日期,类型,信息"
+				
+				for i = 1 to logs.count do (
+					local log = logs[i]
+					-- 转义CSV中的逗号和引号
+					local msg = substituteString log[3] "\"" "\"\""
+					if (findString msg ",") != undefined then (
+						msg = "\"" + msg + "\""
+					)
+					append lines ((i as string) + "," + log[1] + "," + log[2] + "," + msg)
+				)
+				
+				-- 转换为.NET数组
+				local dotNetLines = dotNetObject "System.Collections.ArrayList"
+				for line in lines do dotNetLines.Add line
+				
+				-- 使用UTF8编码写入文件
+				fileClass.WriteAllLines filepath (dotNetLines.ToArray (dotNetClass "System.String")) encodingClass.UTF8
+				
+				return true
+			) catch (
+				-- Fallback: 使用传统MaxScript方式
+				local f = createFile filepath
+				if f != undefined do (
+					format "序号,日期,类型,信息\n" to:f
+					
+					for i = 1 to logs.count do (
+						local log = logs[i]
+						local msg = substituteString log[3] "\"" "\"\""
+						if (findString msg ",") != undefined then (
+							msg = "\"" + msg + "\""
+						)
+						format "%,%,%,%\n" i log[1] log[2] msg to:f
+					)
+					
+					close f
+					return true
+				)
+				return false
+			)
+		) catch (
+			return false
+		)
+	)
+	
+	fn exportLog = (
+		try (
+			-- 检查是否有日志
+			local slog = signature_log()
+			local logs = slog.getAll()
+			
+			if logs.count == 0 do (
+				messageBox "当前没有日志记录可导出！" title:"提示"
+				return undefined
+			)
+			
+			-- 确认对话框
+			local result = queryBox "是否导出日志？\n\n将同时导出 TXT 和 CSV 两种格式。\n\n[是] = 导出日志\n[否] = 取消" title:"导出日志"
+			
+			if result == true then (
+				-- 生成默认文件名（带时间戳）
+				local t = getLocalTime()
+				local timestamp = (t[1] as string) + (if t[2] < 10 then "0" else "") + (t[2] as string) + (if t[3] < 10 then "0" else "") + (t[3] as string) + "_" + (if t[5] < 10 then "0" else "") + (t[5] as string) + (if t[6] < 10 then "0" else "") + (t[6] as string)
+				local defaultName = "病毒扫描日志_" + timestamp
+				
+				-- 选择保存位置（只显示txt类型，简单可靠）
+				local filepath = getSaveFileName caption:"选择导出位置（将同时生成.txt和.csv两个文件）" filename:defaultName types:"文本文件 (*.txt)|*.txt"
+				
+				if filepath != undefined do (
+					-- 分解路径，去掉扩展名
+					local basePath = getFilenamePath filepath
+					local baseName = getFilenameFile filepath
+					
+					-- 构建最终的文件路径
+					local txtPath = basePath + baseName + ".txt"
+					local csvPath = basePath + baseName + ".csv"
+					
+					-- 执行导出
+					local txtSuccess = exportLogToTxt txtPath
+					local csvSuccess = exportLogToCsv csvPath
+					
+					if txtSuccess and csvSuccess then (
+						messageBox ("日志已成功导出到：\n\n" + txtPath + "\n" + csvPath) title:"导出成功"
+					) else if txtSuccess then (
+						messageBox ("TXT 导出成功，CSV 导出失败！\n\n" + txtPath) title:"部分成功"
+					) else if csvSuccess then (
+						messageBox ("CSV 导出成功，TXT 导出失败！\n\n" + csvPath) title:"部分成功"
+					) else (
+						messageBox "导出失败！请检查文件路径是否有效或是否有写入权限。" title:"错误"
+					)
+				)
+			)
+		) catch (
+			local errMsg = "导出日志时发生错误：\n\n" + (getCurrentException())
+			messageBox errMsg title:"错误"
+		)
+	)
+	
 	fn getOnlineHelp = (
 		shellLaunch "http://3dground.net/manual/prune-scene#virus-active-protecton" ""
 	)
@@ -300,34 +474,426 @@ rollout rolBsVirusScanLog "病毒扫描日志  【杀毒不会破坏源文件，
 	)
 	
 	on btnClearAllLog pressed do clearAllLog()
+	
+	on btnExportLog pressed do exportLog()
 )
 
-rollout rolBsCleanVirus  "BsCleanVirus_v1.1"
+rollout rolBatchCleanVirus "批量查杀病毒" (
+	-- 待扫描文件列表
+	label lblFileList "待扫描文件列表：" pos:[10, 10]
+	dotNetControl lbxFiles "system.windows.forms.listView" height: 160 width: 620 pos: [10, 30]
+	
+	-- 操作按钮行
+	button btnAddFiles "添加文件" width: 85 height: 25 pos: [10, 200]
+	button btnAddFolder "添加文件夹" width: 90 height: 25 pos: [100, 200]
+	button btnClearList "清空列表" width: 80 height: 25 pos: [195, 200]
+	checkbox chkRecursive "扫描子文件夹" pos: [290, 203] checked: false
+	checkbox chkAutoSave "查杀后立即保存" pos: [410, 203] checked: false
+	
+	-- 扫描进度区域
+	label lblProgressTitle "扫描进度：" pos:[10, 240]
+	label lblStatus "等待开始..." pos: [10, 260] width: 620
+	progressBar pbProgress "" width: 620 height: 22 pos: [10, 280] color: green
+	
+	-- 扫描报告区域
+	label lblReportTitle "扫描报告：" pos:[10, 315]
+	dotNetControl lbxReport "system.windows.forms.listView" height: 130 width: 620 pos: [10, 335]
+	
+	-- 底部控制按钮
+	button btnStart "开始查杀" width: 100 height: 30 pos: [10, 475]
+	button btnStop "停止" width: 100 height: 30 pos: [115, 475] enabled: false
+	
+	local fileList = #()
+	local scanResults = #()
+	
+	fn getDotNetColor r g b = (DotNetClass "System.Drawing.Color").fromargb r g b
+	
+	fn initDotNet = (
+		align = dotNetClass "HorizontalAlignment"
+		
+		-- 初始化文件列表
+		lbxFiles.Clear()
+		lbxFiles.View = (dotNetClass "System.Windows.Forms.View").Details	
+		lbxFiles.FullRowSelect = true
+		lbxFiles.GridLines = true
+		lbxFiles.MultiSelect = false
+		lbxFiles.CheckBoxes = false
+		lbxFiles.HideSelection = false
+		lbxFiles.Columns.Add "#" 40
+		lbxFiles.Columns.Add "路径" 570
+		
+		-- 初始化报告列表
+		lbxReport.Clear()
+		lbxReport.View = (dotNetClass "System.Windows.Forms.View").Details	
+		lbxReport.FullRowSelect = true
+		lbxReport.GridLines = true
+		lbxReport.MultiSelect = false
+		lbxReport.CheckBoxes = false
+		lbxReport.HideSelection = false
+		lbxReport.Columns.Add "#" 40
+		lbxReport.Columns.Add "文件" 360
+		lbxReport.Columns.Add "状态" 100 align.center
+		lbxReport.Columns.Add "威胁数" 70 align.center
+		
+		lbxFiles.Update()
+		lbxFiles.Refresh()
+		lbxReport.Update()
+		lbxReport.Refresh()
+	)
+	
+	fn collectMaxFiles folder recursive = (
+		local result = #()
+		local pattern = folder + "\\*.max"
+		result = getFiles pattern
+		
+		if recursive do (
+			dirs = getDirectories (folder + "\\*")
+			for d in dirs do (
+				join result (collectMaxFiles d true)
+			)
+		)
+		return result
+	)
+	
+	fn updateFileList = (
+		lbxFiles.Items.Clear()
+		local idx = 1
+		
+		-- 只显示文件
+		for f in fileList do (
+			li = dotNetObject "System.Windows.Forms.ListViewItem" (idx as string)
+			li.subitems.add f
+			lbxFiles.Items.add li
+			idx += 1
+		)
+	)
+	
+	fn addFilesToList files = (
+		for f in files where (findItem fileList f) == 0 do (
+			append fileList f
+		)
+		updateFileList()
+	)
+	
+	fn addFolderToList folder = (
+		-- 立即扫描文件夹中的.max文件
+		local foundFiles = collectMaxFiles folder chkRecursive.checked
+		
+		if foundFiles.count > 0 then (
+			-- 添加找到的文件到列表
+			for f in foundFiles where (findItem fileList f) == 0 do (
+				append fileList f
+			)
+			updateFileList()
+			
+			-- 显示提示
+			local msg = "从文件夹找到 " + (foundFiles.count as string) + " 个 .max 文件"
+			if chkRecursive.checked then (
+				msg += "（包含子文件夹）"
+			)
+			lblStatus.text = msg
+		) else (
+			messageBox ("文件夹中没有找到 .max 文件！\n\n路径：" + folder) title:"提示"
+		)
+	)
+	
+	fn getAllMaxFiles = (
+		-- 直接返回文件列表，因为已经在添加时扫描过了
+		return fileList
+	)
+	
+	fn updateReport filename status threatCount = (
+		li = dotNetObject "System.Windows.Forms.ListViewItem" ((scanResults.count + 1) as string)
+		li.subitems.add (filenameFromPath filename)
+		
+		statusText = case status of (
+			#clean: "✓ 干净"
+			#cleaned: "⚠ 已清理"
+			#error: "✗ 错误"
+			default: "未知"
+		)
+		li.subitems.add statusText
+		li.subitems.add (threatCount as string)
+		
+		bg = getDotNetColor 255 255 255
+		fg = getDotNetColor 0 0 0
+		
+		case status of (
+			#clean: (
+				fg = getDotNetColor 56 118 79
+			)
+			#cleaned: (
+				fg = getDotNetColor 215 144 0
+			)
+			#error: (
+				fg = getDotNetColor 200 0 0
+			)
+		)
+		
+		li.subItems.Item[2].foreColor = fg
+		
+		lbxReport.Items.add li
+		append scanResults #(filename, status, threatCount)
+	)
+	
+	fn scanFile filepath = 
+	(
+		local threatCount = 0
+		local status = #clean
+		
+		try 
+		(
+			-- 记录查杀前的日志数量
+			local slog = signature_log()
+			local beforeCount = (slog.getAll()).count
+			
+			-- 打开文件（兼容旧版本，不使用可选参数）
+			loadMaxFile filepath useFileUnits:true quiet:true
+			
+			-- 执行查杀
+			for f in getFiles (((getDir #scripts) + "\\BulletScripts\\ScanVirus\\")+ "signature.*.mcr") do 
+			(
+				try(FileIn f) catch()
+			)
+			
+			-- 记录查杀后的日志数量
+			local afterCount = (slog.getAll()).count
+			threatCount = afterCount - beforeCount
+			
+			if threatCount > 0 then 
+			(
+				status = #cleaned
+				
+				-- 如果勾选了自动保存（兼容旧版本）
+				if chkAutoSave.checked do 
+				(
+					try (
+						saveMaxFile filepath useNewFile:false quiet:true
+					) catch (
+						-- Fallback: 旧版本可能不支持这些参数
+						saveMaxFile filepath
+					)
+				)
+			) 
+			else 
+			(
+				status = #clean
+				-- 写入干净文件的日志（使用默认类型）
+				local msg = "批量查杀：" + (filenameFromPath filepath) + " - 未发现威胁"
+				slog.write msg
+			)
+		) 
+		catch 
+		(
+			status = #error
+			threatCount = 0
+			-- 写入错误日志
+			local slog = signature_log()
+			local msg = "批量查杀：" + (filenameFromPath filepath) + " - 扫描失败"
+			try (
+				msg += "（" + (getCurrentException()) + "）"
+			) catch ()
+			slog.write msg type:#warn
+		)
+		
+		return #(status, threatCount)
+	)
+	
+	fn startBatchScan = (
+		-- 收集所有文件
+		local allFiles = getAllMaxFiles()
+		local totalFiles = allFiles.count
+		
+		if totalFiles == 0 do (
+			messageBox "没有选择任何文件！请先添加文件或文件夹。                    " title:"提示"
+			return undefined
+		)
+		
+		-- 确认对话框
+		local confirmMsg = "批量查杀将打开并处理 " + (totalFiles as string) + " 个文件。\n\n"
+		confirmMsg += "⚠ 重要提示：\n"
+		confirmMsg += "1. 当前场景将被重置\n"
+		confirmMsg += "2. 请先保存当前文件！\n\n"
+		if chkAutoSave.checked then (
+			confirmMsg += "已勾选\"立即保存\"，查杀后将自动覆盖原文件。\n\n"
+		) else (
+			confirmMsg += "未勾选\"立即保存\"，查杀后不会保存更改。\n\n"
+		)
+		confirmMsg += "是否确认开始批量查杀？"
+		
+		local result = queryBox confirmMsg title:"批量查杀确认"
+		if result != true do (
+			return undefined
+		)
+		
+		-- 开始扫描
+		batchStopFlag = false
+		btnStart.enabled = false
+		btnStop.enabled = true
+		btnAddFiles.enabled = false
+		btnAddFolder.enabled = false
+		btnClearList.enabled = false
+		chkRecursive.enabled = false
+		chkAutoSave.enabled = false
+		
+		-- 清空报告
+		lbxReport.Items.Clear()
+		scanResults = #()
+		
+		lblStatus.text = "准备扫描 " + (totalFiles as string) + " 个文件..."
+		pbProgress.value = 0
+		windows.processPostedMessages()
+		
+		-- 逐个扫描
+		for i = 1 to totalFiles while (not batchStopFlag) do (
+			local filepath = allFiles[i]
+			lblStatus.text = "正在处理 (" + (i as string) + "/" + (totalFiles as string) + "): " + (filenameFromPath filepath)
+			
+			local result = scanFile filepath
+			updateReport filepath result[1] result[2]
+			
+			pbProgress.value = (100.0 * i / totalFiles) as integer
+			windows.processPostedMessages()
+		)
+		
+		if batchStopFlag then (
+			lblStatus.text = "已停止！已处理 " + (scanResults.count as string) + "/" + (totalFiles as string) + " 个文件"
+		) else (
+			lblStatus.text = "完成！共处理 " + (totalFiles as string) + " 个文件"
+			local cleanCount = (for r in scanResults where r[2] == #clean collect r).count
+			local cleanedCount = (for r in scanResults where r[2] == #cleaned collect r).count
+			local errorCount = (for r in scanResults where r[2] == #error collect r).count
+			
+			local summaryMsg = "批量查杀完成！\n\n"
+			summaryMsg += "共扫描: " + (totalFiles as string) + " 个文件\n"
+			summaryMsg += "✓ 干净: " + (cleanCount as string) + " 个\n"
+			summaryMsg += "⚠ 已清理: " + (cleanedCount as string) + " 个\n"
+			if errorCount > 0 do (
+				summaryMsg += "✗ 错误: " + (errorCount as string) + " 个\n"
+			)
+			
+			messageBox summaryMsg title:"批量查杀完成"
+		)
+		
+		btnStart.enabled = true
+		btnStop.enabled = false
+		btnAddFiles.enabled = true
+		btnAddFolder.enabled = true
+		btnClearList.enabled = true
+		chkRecursive.enabled = true
+		chkAutoSave.enabled = true
+	)
+	
+	on rolBatchCleanVirus open do (
+		initDotNet()
+	)
+	
+	on btnAddFiles pressed do (
+		try (
+			-- 使用 DotNet OpenFileDialog 支持多选（Max 2010+支持）
+			local ofd = dotNetObject "System.Windows.Forms.OpenFileDialog"
+			ofd.Title = "选择Max文件"
+			ofd.Filter = "3ds Max Files (*.max)|*.max|All files (*.*)|*.*"
+			ofd.Multiselect = true
+			
+			-- 设置初始目录（如果当前有打开的文件）
+			if maxFilePath != undefined and maxFilePath != "" then (
+				ofd.InitialDirectory = maxFilePath
+			)
+			
+			local result = ofd.ShowDialog()
+			local dialogResult = dotNetClass "System.Windows.Forms.DialogResult"
+			
+			if result == dialogResult.OK do (
+				-- 直接获取文件名数组，MaxScript会自动转换.NET集合
+				local files = ofd.FileNames
+				
+				-- 转换为MaxScript数组
+				local fileArray = #()
+				for f in files do (
+					append fileArray f
+				)
+				
+				if fileArray.count > 0 do (
+					addFilesToList fileArray
+				)
+			)
+		) catch (
+			-- Fallback: 如果.NET方法失败，提示用户手动拖放或使用旧版Max
+			messageBox "多文件选择功能需要 3ds Max 2010 或更高版本。\n\n请尝试：\n1. 使用\"添加文件夹\"功能\n2. 升级Max版本" title:"提示"
+		)
+	)
+	
+	on btnAddFolder pressed do (
+		local folder = getSavePath caption:"选择文件夹"
+		if folder != undefined do (
+			addFolderToList folder
+		)
+	)
+	
+	on btnClearList pressed do (
+		fileList = #()
+		updateFileList()
+		lblStatus.text = "等待开始..."
+	)
+	
+	on btnStart pressed do (
+		startBatchScan()
+	)
+	
+	on btnStop pressed do (
+		batchStopFlag = true
+		lblStatus.text = "正在停止..."
+	)
+	
+	on rolBatchCleanVirus resized size do (
+		local newWidth = size.x - 20
+		local newHeight = size.y
+		
+		-- 调整宽度
+		lbxFiles.width = newWidth
+		lbxFiles.height = 160
+		
+		lblStatus.width = newWidth
+		pbProgress.width = newWidth
+		
+		lbxReport.width = newWidth
+		lbxReport.height = newHeight - 375
+		
+		-- 调整按钮位置
+		local btnY = newHeight - 40
+		btnStart.pos.y = btnY
+		btnStop.pos.y = btnY
+		
+		lblReportTitle.pos.y = newHeight - 200
+		lbxReport.pos.y = newHeight - 180
+	)
+)
+
+rollout rolBsCleanVirus  "BsCleanVirus_v2.0"
 (
     local startupBsCleanVirusTools = (getDir #Scripts) + "\\BulletScripts\\StartupMS\\BsCleanVirusStartup.ms"
 	local startupLocalPath = (getDir #StartupScripts)+ "\\BsCleanVirusStartup.ms"
 
     group "【解析自 PruneScene 免费功能，仅供学习】"
     (
-        checkbutton ckbStartup "主动防御 [杀毒自启] " width:130 height:30 pos:[10,30]
-        checkbutton ckbSilent "静默" width:35 height:30 pos:[145,30]
-		button btnCleanNow "立即查杀" width:70 height:30 pos:[185,30]
-        button btnCleanLog "日志" width:45 height:30 pos:[260,30]
+        checkbutton ckbStartup "主动防御 [杀毒自启] " width:130 height:30 pos:[10,20]
+        checkbutton ckbSilent "静默" width:35 height:30 pos:[145,20]
+		button btnCleanNow "立即查杀" width:70 height:30 pos:[185,20]
+        button btnBatchClean "批量查杀" width:75 height:30 pos:[260,20]
+        button btnCleanLog "日志" width:45 height:30 pos:[340,20]
     )
 
     group "杀毒特征库"
     (
-        listbox lbxVirusLib "" width:295 height:10 pos:[10,90] readonly:true
+        listbox lbxVirusLib "" width:365 height:12 pos:[10,75] readonly:true
     )
 
-    group ""
-    (
-        HyperLink lnkPruneScene "杀毒特征来源：PruneScene" color:myfgColor hovercolor:myClickColor visitedcolor:myClickColor 
-        pos:[15,250] address:"http://3dground.net/manual/prune-scene#virus-active-protecton"
+    HyperLink lnkPruneScene "杀毒特征来源：PruneScene" color:myfgColor hovercolor:myClickColor visitedcolor:myClickColor 
+        pos:[15,255] width:170 address:"http://3dground.net/manual/prune-scene#virus-active-protecton"
 
-        HyperLink lnkBsNotion "解析修改：Bullet.S" color:myfgColor hovercolor:myClickColor visitedcolor:myClickColor 
-        pos:[205,250] address:"https://space.bilibili.com/2031113/lists/560782"
-    )
+    HyperLink lnkBsNotion "解析修改：Bullet.S" color:myfgColor hovercolor:myClickColor visitedcolor:myClickColor 
+        pos:[260,255] width:120 address:"https://space.bilibili.com/2031113/lists/560782"
 
     fn fnRefreshVirusLib =
     (
@@ -362,6 +928,12 @@ rollout rolBsCleanVirus  "BsCleanVirus_v1.1"
         messageBox "检测结束，请注意弹窗和查看日志！并且注意保存/另存文件！                                                 "
         try(destroyDialog rolBsVirusScanLog) catch()
         createDialog rolBsVirusScanLog 850 450 style: #(#style_toolwindow, #style_resizing, #style_sysmenu, #style_toolwindow)
+    )
+
+	on btnBatchClean pressed do 
+    (
+        try(destroyDialog rolBatchCleanVirus) catch()
+        createDialog rolBatchCleanVirus 650 510 style: #(#style_toolwindow, #style_resizing, #style_sysmenu)
     )
 
     on btnCleanLog pressed do 
@@ -412,4 +984,4 @@ rollout rolBsCleanVirus  "BsCleanVirus_v1.1"
 	)
 ------------------------------------------------------------------------------------------------------
 )
-Createdialog rolBsCleanVirus 315 280 fgcolor:myFgColor
+Createdialog rolBsCleanVirus 390 280 fgcolor:myFgColor
