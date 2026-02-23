@@ -1672,7 +1672,11 @@ class BsScriptHub(QDialog):
     def _show_about(self):
         """显示关于对话框"""
         dialog = AboutDialog(self, VERSION, self.current_branch)
-        dialog.exec_() if hasattr(dialog, 'exec_') else dialog.exec()
+        # Python 2.7: exec is a keyword, use exec_() or getattr
+        if hasattr(dialog, 'exec_'):
+            dialog.exec_()
+        else:
+            getattr(dialog, 'exec')()
     
     def _toggle_branch(self):
         """切换分支"""
