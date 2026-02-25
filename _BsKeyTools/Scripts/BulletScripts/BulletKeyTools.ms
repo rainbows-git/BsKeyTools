@@ -187,18 +187,18 @@ rollout rolContributors "Special Thanks" width:340 height:420
 	label lblThanksDesc "感谢以下个人的代码贡献与灵感支持:" pos:[20,170]
 
 	-- 预分配标签槽位 (左列 6 + 右列 6 = 最多展示 12 人)
-	label lblL1 "" pos:[40,195]
-	label lblL2 "" pos:[40,215]
-	label lblL3 "" pos:[40,235]
-	label lblL4 "" pos:[40,255]
-	label lblL5 "" pos:[40,275]
-	label lblL6 "" pos:[40,295]
-	label lblR1 "" pos:[185,195]
-	label lblR2 "" pos:[185,215]
-	label lblR3 "" pos:[185,235]
-	label lblR4 "" pos:[185,255]
-	label lblR5 "" pos:[185,275]
-	label lblR6 "" pos:[185,295]
+	label lblL1 "" pos:[40,195] width:130 align:#left
+	label lblL2 "" pos:[40,215] width:130 align:#left
+	label lblL3 "" pos:[40,235] width:130 align:#left
+	label lblL4 "" pos:[40,255] width:130 align:#left
+	label lblL5 "" pos:[40,275] width:130 align:#left
+	label lblL6 "" pos:[40,295] width:130 align:#left
+	label lblR1 "" pos:[185,195] width:130 align:#left
+	label lblR2 "" pos:[185,215] width:130 align:#left
+	label lblR3 "" pos:[185,235] width:130 align:#left
+	label lblR4 "" pos:[185,255] width:130 align:#left
+	label lblR5 "" pos:[185,275] width:130 align:#left
+	label lblR6 "" pos:[185,295] width:130 align:#left
 
 	label lblMore "...以及所有提供反馈和建议的朋友们!" pos:[60,320]
 
@@ -267,10 +267,16 @@ rollout rolContributors "Special Thanks" width:340 height:420
 		-- 按行优先顺序填充两列标签 (左→右→换行, 自然阅读顺序)
 		local leftArr  = #(lblL1, lblL2, lblL3, lblL4, lblL5, lblL6)
 		local rightArr = #(lblR1, lblR2, lblR3, lblR4, lblR5, lblR6)
+		for i = 1 to 6 do
+		(
+			leftArr[i].text = ""
+			rightArr[i].text = ""
+		)
+
 		local maxDisplay = if names.count > 12 then 12 else names.count
 		for i = 1 to maxDisplay do
 		(
-			local row = ((i - 1) / 2) + 1
+			local row = (floor ((i - 1) / 2.0)) + 1
 			if (mod i 2) == 1 then
 				leftArr[row].text = "- " + names[i]
 			else
