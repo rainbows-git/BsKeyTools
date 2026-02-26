@@ -11,7 +11,7 @@ global noesis_path
 global output_path
 global arrMotFilesLoaded
 
-rollout rolREAnimTools "RE_AnimTools_v1.6_Bullet.S" height:105 width:305
+rollout rolREAnimTools "RE_AnimTools_v1.7_Bullet.S" height:105 width:305
 (
 	local arrGamesName = #("MHWsOBT-怪物猎人荒野公测版","MHWs-怪物猎人荒野正式版","MHRise-怪物猎人崛起","MHRSunbreak-怪物猎人崛起曙光","MHS3-怪物猎人物语3体验版","Pragmata-体验版")
 
@@ -266,7 +266,8 @@ rollout rolMotViewer "Motlist Viewer"
 	editText edtMotlistPath "" text:"" labelOnTop:true height:20 fieldWidth:190 pos:[5,5]
 	button btnOpenMotlistPath "选择" height:20 width:35 pos:[200,5]
 	button btnRefreshFolder "刷新" height:20 width:30 pos:[235,5]
-	ListBox ltbMotlistFiles "" selection:0 height:15 width:260 pos:[5,30]
+	checkbox chkSubFolders "包含子文件夹" checked:false align:#left pos:[5,30]
+	ListBox ltbMotlistFiles "" selection:0 height:14 width:260 pos:[5,50]
 	button btnImportSel "导入或分离选中" height:25 width:125 pos:[5,235]
 	button btnConvertAll "分离列表所有" height:25 width:130 pos:[135,235]
 
@@ -320,10 +321,13 @@ rollout rolMotViewer "Motlist Viewer"
 	(
 		if (edtMotlistPath.text != undefined) and (edtMotlistPath.text != "") then 
         (
-            arrMotFilesLoaded = (rolMotViewer.GetMotFilesRecursive rolMotViewer.edtMotlistPath.text (@"*" + motExt))
+            if rolMotViewer.chkSubFolders.checked then
+				arrMotFilesLoaded = (rolMotViewer.GetMotFilesRecursive rolMotViewer.edtMotlistPath.text (@"*" + motExt))
+			else
+				arrMotFilesLoaded = getFiles (edtMotlistPath.text + @"\" + (@"*" + motExt))
 			qsort arrMotFilesLoaded rolMotViewer.fnPseudoNaturalSort
 			rolMotViewer.ltbMotlistFiles.items = for i in arrMotFilesLoaded collect ((getfilenamefile i) + motExt)
-			if arrMotFilesLoaded.count == 0 then (messagebox"请确认置顶目标游戏选择正确!                                         ")
+			if arrMotFilesLoaded.count == 0 then (messagebox"未找到动画文件，请确认置顶目标游戏选择正确!                                         ")
 			arrMotFilesLoaded
 		)
 	)
@@ -401,13 +405,16 @@ rollout rolMotViewer "Motlist Viewer"
 
 rollout FBXBatchProcessor "Bone Anim FBX Fix (荒野专用)"
 (
-	on FBXBatchProcessor rolledUp state do (if not state then rolREAnimTools.height -= 120 else rolREAnimTools.height += 120)
+	on FBXBatchProcessor rolledUp state do (if not state then rolREAnimTools.height -= 160 else rolREAnimTools.height += 160)
 
 	local fbxFiles = #()
 	local outputPath = ""
+	local rootPath = ""
 	local arrFixTarget = #("Camera", "Ground_Angle", "L_Leg_IK", "R_Leg_IK", "COG", "Hip", "root")
 
 	button btnSelectFolder "选择动画 FBX 文件夹" align:#center offset:[0,0] width:240 height:25
+	checkbox chkSubFolders "包含子文件夹" checked:false align:#left
+	checkbox chkKeepFolderStructure "保持文件夹结构" checked:false align:#left
 	button btnProcess "开始批量处理并修复帧率" align:#center width:240 height:30 enabled:false
 	progressBar pbProgress align:#center width:240 height:12 color:white
 	label lblStatus "状态：等待操作" align:#left width:220 height:20
@@ -450,7 +457,10 @@ rollout FBXBatchProcessor "Bone Anim FBX Fix (荒野专用)"
 	(
 		local dir = dotNetClass "System.IO.Directory"
 		local searchOption = dotNetClass "System.IO.SearchOption"
-		dir.GetFiles rootPath "*.fbx"
+		if chkSubFolders.checked then
+			dir.GetFiles rootPath "*.fbx" searchOption.AllDirectories
+		else
+			dir.GetFiles rootPath "*.fbx"
 	)
 	
 	fn parseFrameCount filename = 
@@ -485,7 +495,18 @@ rollout FBXBatchProcessor "Bone Anim FBX Fix (荒野专用)"
 			local outputName = newName[1]
 			outputName = substituteString outputName ".fbx" "_fixed.fbx"
 			-- outputMaxName = substituteString outputName ".fbx" "_fixed.max"
-			local finalPath = outputPath + "\\" + outputName
+			local finalDir = outputPath
+			if chkKeepFolderStructure.checked and rootPath != "" then
+			(
+				local fileDir = getFilenamePath inputFile
+				local relativePath = trimRight (substring fileDir (rootPath.count + 2) -1) "\\"
+				if relativePath != undefined and relativePath != "" then
+				(
+					finalDir = outputPath + "\\" + relativePath
+					makeDir finalDir all:true
+				)
+			)
+			local finalPath = finalDir + "\\" + outputName
 
 			FBXExporterSetParam "Animation" true
 			FBXExporterSetParam "BakeAnimation" true
@@ -506,6 +527,7 @@ rollout FBXBatchProcessor "Bone Anim FBX Fix (荒野专用)"
 		local path = getSavePath caption:"选择包含FBX文件的文件夹"
 		if path != undefined do
 		(
+			rootPath = path
 			outputPath = path + "\\Fixed"
 			makeDir outputPath
 			fbxFiles = getAllFBXFiles path
